@@ -14,7 +14,7 @@
   let order = [];
   let cursor = 0;
   let revealed = false;
-  let pickedLetter = null;
+  let picks = null;
 
   function shuffle(arr) {
     const a = arr.slice();
@@ -32,27 +32,20 @@
       const parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.order)) return null;
       return parsed;
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
   function saveSession() {
-    sessionStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({ order, cursor })
-    );
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ order, cursor }));
   }
 
-  function clearSession() {
-    sessionStorage.removeItem(SESSION_KEY);
-  }
+  function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
   function startNewSession() {
     order = shuffle(questions.map((_, i) => i));
     cursor = 0;
     revealed = false;
-    pickedLetter = null;
+    picks = null;
     saveSession();
     render();
   }
@@ -66,46 +59,47 @@
       .replace(/'/g, "&#039;");
   }
 
-  function answerLetters(answerStr) {
-    if (!answerStr) return [];
-    const letters = answerStr.match(/\b[A-Z]\b/g);
-    return letters ? Array.from(new Set(letters)) : [];
+  function renderMarkdown(md) {
+    return window.marked ? window.marked.parse(md) : escapeHtml(md);
   }
 
-  function isClickToAnswer(q) {
-    if (q.type !== "multiple-choice") return false;
-    if (!q.options || q.options.length === 0) return false;
-    const letters = answerLetters(q.answer);
-    return letters.length === 1;
+  function normalize(s) {
+    return String(s || "").trim().replace(/\s+/g, " ").replace(/\.$/, "").toLowerCase();
   }
 
-  function topicLabel(t) {
-    return `Topic ${t}`;
-  }
+  function topicLabel(t) { return `Topic ${t}`; }
 
   function typeLabel(t) {
-    const map = {
+    return ({
       "multiple-choice": "Multiple Choice",
       "multi-select": "Multi-Select",
       "hotspot": "Hotspot",
       "drag-drop": "Drag & Drop",
-      "yes-no-series": "Yes / No Series",
-    };
-    return map[t] || t;
+    })[t] || t;
   }
 
-  function render() {
-    if (cursor >= order.length) {
-      renderSummary();
-      return;
+  function initPicksFor(q) {
+    switch (q.type) {
+      case "multiple-choice": return { letter: null };
+      case "multi-select": return { set: new Set() };
+      case "hotspot": return { slots: q.slots ? q.slots.map(() => null) : [] };
+      case "drag-drop": return { targets: q.targets ? q.targets.map(() => null) : [] };
+      default: return { letter: null };
     }
-    const q = questions[order[cursor]];
-    const totalAnswered = cursor;
-    progressNum.textContent = String(totalAnswered + (revealed ? 1 : 0));
-    progressTotal.textContent = String(order.length);
-    progressFill.style.width =
-      ((totalAnswered + (revealed ? 1 : 0)) / order.length) * 100 + "%";
+  }
 
+  function hasAnyPicks(q, p) {
+    if (!p) return false;
+    switch (q.type) {
+      case "multiple-choice": return p.letter !== null;
+      case "multi-select": return p.set && p.set.size > 0;
+      case "hotspot": return p.slots && p.slots.some(x => x !== null);
+      case "drag-drop": return p.targets && p.targets.some(x => x !== null);
+      default: return false;
+    }
+  }
+
+  function renderHeader(q) {
     const tags = [
       `<span class="tag">${topicLabel(q.topic)} · Q${q.question_number}</span>`,
       `<span class="tag tag-type">${typeLabel(q.type)}</span>`,
@@ -113,79 +107,271 @@
     if (q.case_study) {
       tags.push(`<span class="tag tag-case">Case Study: ${escapeHtml(q.case_study)}</span>`);
     }
+    return `<div class="slide-meta">${tags.join("")}</div>
+            <div class="question-text">${renderMarkdown(q.question_text || "")}</div>`;
+  }
 
-    const clickMode = isClickToAnswer(q);
-    const correctLetters = answerLetters(q.answer);
-    const correctSet = new Set(correctLetters);
+  function renderMultipleChoice(q) {
+    const correct = new Set(q.correct_letters || []);
+    const optsHtml = (q.options || []).map(opt => {
+      const isPicked = picks.letter === opt.letter;
+      const isCorrect = correct.has(opt.letter);
+      let cls = "option";
+      if (revealed) {
+        if (isCorrect) cls += " correct";
+        else if (isPicked) cls += " wrong";
+      } else if (isPicked) {
+        cls += " picked";
+      }
+      const dis = revealed ? "disabled" : "";
+      return `<button class="${cls}" data-letter="${opt.letter}" ${dis}>
+        <span class="option-letter">${opt.letter}</span>
+        <span class="option-text">${escapeHtml(opt.text)}</span>
+      </button>`;
+    }).join("");
+    return `<div class="options">${optsHtml}</div>`;
+  }
 
-    let optionsHtml = "";
-    if (q.options && q.options.length > 0) {
-      optionsHtml = `<div class="options">${q.options
-        .map((opt) => {
-          const isCorrect = correctSet.has(opt.letter);
-          const isPicked = pickedLetter === opt.letter;
-          let cls = "option";
-          if (revealed) {
-            if (isCorrect) cls += " correct";
-            else if (isPicked) cls += " wrong";
-          } else if (isPicked) {
-            cls += " picked";
-          }
-          const disabled = revealed ? "disabled" : "";
-          return `<button class="${cls}" data-letter="${opt.letter}" ${disabled}>
-            <span class="option-letter">${opt.letter}</span>
-            <span class="option-text">${escapeHtml(opt.text)}</span>
-          </button>`;
-        })
-        .join("")}</div>`;
-    }
+  function renderMultiSelect(q) {
+    const correct = new Set(q.correct_letters || []);
+    const optsHtml = (q.options || []).map(opt => {
+      const isPicked = picks.set.has(opt.letter);
+      const isCorrect = correct.has(opt.letter);
+      let cls = "option option-checkable";
+      if (revealed) {
+        if (isCorrect && isPicked) cls += " correct";
+        else if (isCorrect && !isPicked) cls += " missed";
+        else if (!isCorrect && isPicked) cls += " wrong";
+      } else if (isPicked) {
+        cls += " picked";
+      }
+      const dis = revealed ? "disabled" : "";
+      return `<button class="${cls}" data-letter="${opt.letter}" ${dis}>
+        <span class="option-checkbox">${isPicked ? "✓" : ""}</span>
+        <span class="option-letter">${opt.letter}</span>
+        <span class="option-text">${escapeHtml(opt.text)}</span>
+      </button>`;
+    }).join("");
+    return `<div class="options" data-multi="true">${optsHtml}</div>`;
+  }
 
-    let verdictHtml = "";
+  function renderSlot(label, options, picked, correct, idx) {
+    let cls = "slot";
+    let resultHtml = "";
+    let selectHtml = "";
     if (revealed) {
-      if (clickMode && pickedLetter) {
-        const correct = correctSet.has(pickedLetter);
-        verdictHtml = `<div class="verdict ${correct ? "verdict-correct" : "verdict-wrong"}">
-          ${correct ? "✓ Correct" : `✗ Incorrect — correct answer: ${escapeHtml(q.answer)}`}
+      const isRight = picked && normalize(picked) === normalize(correct);
+      cls += isRight ? " slot-correct" : " slot-wrong";
+      if (isRight) {
+        resultHtml = `<div class="slot-result">
+          <span class="slot-pick correct-pick">${escapeHtml(picked)}</span>
+          <span class="slot-icon">✓</span>
+        </div>`;
+      } else if (picked) {
+        resultHtml = `<div class="slot-result">
+          <span class="slot-pick wrong-pick">${escapeHtml(picked)}</span>
+          <span class="slot-icon">✗</span>
+          <div class="slot-correct-text">Correct: <strong>${escapeHtml(correct || "")}</strong></div>
         </div>`;
       } else {
-        verdictHtml = `<div class="verdict verdict-revealed">
-          Answer: ${escapeHtml(q.answer || "(see explanation)")}
+        resultHtml = `<div class="slot-result">
+          <span class="slot-pick empty-pick">(no selection)</span>
+          <div class="slot-correct-text">Correct: <strong>${escapeHtml(correct || "")}</strong></div>
         </div>`;
       }
+    } else {
+      const optsHtml = ['<option value="">— select —</option>']
+        .concat(options.map(o => `<option value="${escapeHtml(o)}" ${picked === o ? "selected" : ""}>${escapeHtml(o)}</option>`))
+        .join("");
+      selectHtml = `<select class="slot-select" data-idx="${idx}">${optsHtml}</select>`;
+    }
+    return `<div class="${cls}">
+      <div class="slot-label">${escapeHtml(label)}</div>
+      ${selectHtml}
+      ${resultHtml}
+    </div>`;
+  }
+
+  function renderHotspot(q) {
+    const slotsHtml = (q.slots || []).map((slot, i) => {
+      return renderSlot(slot.label, slot.options, picks.slots[i], slot.correct, i);
+    }).join("");
+    return `<div class="slots" data-kind="hotspot">${slotsHtml}</div>`;
+  }
+
+  function renderDragDrop(q) {
+    const sourcesHtml = revealed ? "" : `
+      <div class="dnd-sources">
+        <div class="dnd-sources-label">Available items</div>
+        <ul>${(q.sources || []).map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+      </div>`;
+    const targetsHtml = (q.targets || []).map((tgt, i) => {
+      return renderSlot(tgt.label, q.sources || [], picks.targets[i], tgt.correct, i);
+    }).join("");
+    return `${sourcesHtml}<div class="slots" data-kind="drag-drop">${targetsHtml}</div>`;
+  }
+
+  function gradeAll(q) {
+    switch (q.type) {
+      case "multiple-choice": {
+        const correct = new Set(q.correct_letters || []);
+        if (!picks.letter) return "skipped";
+        return correct.has(picks.letter) ? "correct" : "wrong";
+      }
+      case "multi-select": {
+        const correct = new Set(q.correct_letters || []);
+        if (picks.set.size === 0) return "skipped";
+        if (picks.set.size !== correct.size) return "wrong";
+        for (const l of picks.set) if (!correct.has(l)) return "wrong";
+        return "correct";
+      }
+      case "hotspot": {
+        const slots = q.slots || [];
+        let any = false, allRight = true;
+        slots.forEach((s, i) => {
+          if (picks.slots[i]) any = true;
+          if (normalize(picks.slots[i]) !== normalize(s.correct)) allRight = false;
+        });
+        if (!any) return "skipped";
+        return allRight ? "correct" : "wrong";
+      }
+      case "drag-drop": {
+        const targets = q.targets || [];
+        let any = false, allRight = true;
+        targets.forEach((t, i) => {
+          if (picks.targets[i]) any = true;
+          if (normalize(picks.targets[i]) !== normalize(t.correct)) allRight = false;
+        });
+        if (!any) return "skipped";
+        return allRight ? "correct" : "wrong";
+      }
+    }
+    return "skipped";
+  }
+
+  function renderVerdict(q) {
+    if (!revealed) return "";
+    const v = gradeAll(q);
+    if (v === "correct") {
+      return `<div class="verdict verdict-correct">✓ Correct</div>`;
+    } else if (v === "wrong") {
+      const total = q.type === "hotspot" ? (q.slots || []).length
+                  : q.type === "drag-drop" ? (q.targets || []).length
+                  : null;
+      let detail = "Incorrect";
+      if (total !== null) {
+        let right = 0;
+        if (q.type === "hotspot") {
+          (q.slots || []).forEach((s, i) => { if (normalize(picks.slots[i]) === normalize(s.correct)) right++; });
+        } else if (q.type === "drag-drop") {
+          (q.targets || []).forEach((t, i) => { if (normalize(picks.targets[i]) === normalize(t.correct)) right++; });
+        }
+        detail = `${right} of ${total} correct`;
+      }
+      return `<div class="verdict verdict-wrong">✗ ${detail} — see explanation below</div>`;
+    } else {
+      return `<div class="verdict verdict-revealed">Answer revealed — see explanation below</div>`;
+    }
+  }
+
+  function renderExplanation(q) {
+    if (!revealed) return "";
+    const md = (q.explanation_md || "").replace(/^#\s+.*$/m, "").trim();
+    return `<div class="explanation">${renderMarkdown(md)}</div>`;
+  }
+
+  function render() {
+    if (cursor >= order.length) { renderSummary(); return; }
+    const q = questions[order[cursor]];
+    progressNum.textContent = String(cursor + (revealed ? 1 : 0));
+    progressTotal.textContent = String(order.length);
+    progressFill.style.width = ((cursor + (revealed ? 1 : 0)) / order.length) * 100 + "%";
+
+    if (!picks) picks = initPicksFor(q);
+
+    let bodyHtml = "";
+    switch (q.type) {
+      case "multiple-choice": bodyHtml = renderMultipleChoice(q); break;
+      case "multi-select": bodyHtml = renderMultiSelect(q); break;
+      case "hotspot": bodyHtml = renderHotspot(q); break;
+      case "drag-drop": bodyHtml = renderDragDrop(q); break;
+      default: bodyHtml = renderMultipleChoice(q);
     }
 
-    let explanationHtml = "";
-    if (revealed) {
-      const md = q.explanation_md || "";
-      const cleaned = md.replace(/^#\s+.*$/m, "").trim();
-      const rendered = window.marked ? window.marked.parse(cleaned) : escapeHtml(cleaned);
-      explanationHtml = `<div class="explanation">${rendered}</div>`;
-    }
+    slideEl.innerHTML =
+      renderHeader(q) +
+      bodyHtml +
+      renderVerdict(q) +
+      renderExplanation(q);
 
-    slideEl.innerHTML = `
-      <div class="slide-meta">${tags.join("")}</div>
-      <div class="question-text">${escapeHtml(q.question_text)}</div>
-      ${optionsHtml}
-      ${verdictHtml}
-      ${explanationHtml}
-    `;
+    attachHandlers(q);
+    updateFooter(q);
+  }
 
-    if (clickMode && !revealed) {
-      slideEl.querySelectorAll(".option").forEach((btn) => {
+  function attachHandlers(q) {
+    if (revealed) return;
+    if (q.type === "multiple-choice") {
+      slideEl.querySelectorAll(".option").forEach(btn => {
         btn.addEventListener("click", () => {
-          pickedLetter = btn.dataset.letter;
+          picks.letter = btn.dataset.letter;
           revealed = true;
           saveSession();
           render();
         });
       });
+    } else if (q.type === "multi-select") {
+      slideEl.querySelectorAll(".option").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const l = btn.dataset.letter;
+          if (picks.set.has(l)) picks.set.delete(l);
+          else picks.set.add(l);
+          render();
+        });
+      });
+    } else if (q.type === "hotspot" || q.type === "drag-drop") {
+      const arr = q.type === "hotspot" ? picks.slots : picks.targets;
+      slideEl.querySelectorAll(".slot-select").forEach(sel => {
+        sel.addEventListener("change", () => {
+          const i = parseInt(sel.dataset.idx, 10);
+          arr[i] = sel.value || null;
+        });
+      });
     }
+  }
 
-    revealBtn.hidden = clickMode || revealed;
-    nextBtn.hidden = !revealed;
-    restartBtn.hidden = !revealed;
+  function updateFooter(q) {
+    const isClickAuto = q.type === "multiple-choice";
+    if (revealed) {
+      revealBtn.hidden = true;
+      nextBtn.hidden = false;
+      restartBtn.hidden = false;
+      nextBtn.textContent = cursor === order.length - 1 ? "Finish" : "Next Question";
+    } else {
+      if (isClickAuto) {
+        revealBtn.hidden = true;
+      } else {
+        revealBtn.hidden = false;
+        revealBtn.textContent = hasAnyPicks(q, picks) ? "Submit Answer" : "Show Answer";
+      }
+      nextBtn.hidden = true;
+      restartBtn.hidden = true;
+    }
+  }
 
-    nextBtn.textContent = cursor === order.length - 1 ? "Finish" : "Next Question";
+  function submit() {
+    if (revealed || cursor >= order.length) return;
+    revealed = true;
+    saveSession();
+    render();
+  }
+
+  function next() {
+    if (!revealed) return;
+    cursor += 1;
+    revealed = false;
+    picks = null;
+    saveSession();
+    render();
   }
 
   function renderSummary() {
@@ -205,42 +391,23 @@
             <span class="stat-label">Total in bank</span>
           </div>
         </div>
-        <p>Click <strong>Start New Session</strong> below to reshuffle and go again.</p>
-      </div>
-    `;
+        <p>Click <strong>Start New Session</strong> below to reshuffle.</p>
+      </div>`;
     revealBtn.hidden = true;
     nextBtn.hidden = true;
     restartBtn.hidden = false;
   }
 
-  function reveal() {
-    if (revealed || cursor >= order.length) return;
-    revealed = true;
-    saveSession();
-    render();
-  }
-
-  function next() {
-    if (!revealed) return;
-    cursor += 1;
-    revealed = false;
-    pickedLetter = null;
-    saveSession();
-    render();
-  }
-
-  revealBtn.addEventListener("click", reveal);
+  revealBtn.addEventListener("click", submit);
   nextBtn.addEventListener("click", next);
-  restartBtn.addEventListener("click", () => {
-    clearSession();
-    startNewSession();
-  });
+  restartBtn.addEventListener("click", () => { clearSession(); startNewSession(); });
 
-  document.addEventListener("keydown", (e) => {
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  document.addEventListener("keydown", e => {
+    const tag = e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
     if (e.code === "Space" && !revealBtn.hidden) {
       e.preventDefault();
-      reveal();
+      submit();
     } else if (e.code === "ArrowRight" && !nextBtn.hidden) {
       e.preventDefault();
       next();
@@ -248,11 +415,11 @@
   });
 
   fetch("questions.json", { cache: "no-store" })
-    .then((r) => {
+    .then(r => {
       if (!r.ok) throw new Error("Failed to load questions.json: " + r.status);
       return r.json();
     })
-    .then((data) => {
+    .then(data => {
       questions = (data.questions || []).slice();
       if (questions.length === 0) {
         slideEl.innerHTML = `<div class="slide-loading">No questions found. Run <code>build.py</code> first.</div>`;
@@ -262,14 +429,16 @@
       if (saved && saved.order.length === questions.length) {
         order = saved.order;
         cursor = saved.cursor || 0;
-        revealed = false;
-        pickedLetter = null;
-        render();
       } else {
-        startNewSession();
+        order = shuffle(questions.map((_, i) => i));
+        cursor = 0;
+        saveSession();
       }
+      revealed = false;
+      picks = null;
+      render();
     })
-    .catch((err) => {
-      slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>python -m http.server</code>) — opening index.html directly will block fetch().</div>`;
+    .catch(err => {
+      slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>py -m http.server</code>) — opening index.html directly will block fetch().</div>`;
     });
 })();

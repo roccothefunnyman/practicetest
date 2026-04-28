@@ -1,9 +1,9 @@
 """Build questions.json from the extracted/ markdown files.
 
-Run from the practice questions/ folder:
-    python build.py
+Run from the practicetest/ folder:
+    py build.py
 
-Output: practice questions/app/questions.json
+Output: practicetest/app/questions.json
 """
 
 import json
@@ -33,38 +33,148 @@ def parse_frontmatter(text):
     return fm, body
 
 
-def parse_question_body(body):
-    """Return (question_text, options[]). Options are {letter, text}.
+def strip_intro_chrome(intro):
+    intro = re.sub(r"^#\s+Question\s+\d+\s*\n+", "", intro)
+    intro = re.sub(r"^>\s+See\s+\[[^\]]*\]\([^)]*\)\s*\n+", "", intro)
+    return intro.strip()
 
-    Handles 'A. Foo' multiple-choice/multi-select. For hotspot/drag-drop/yes-no,
-    options will be empty and the full body becomes the question text.
+
+def strip_note_tail(text):
+    return re.sub(r"\n*NOTE:[^\n]*", "", text).strip()
+
+
+def parse_choice_body(body):
+    body = strip_intro_chrome(body)
+    option_re = re.compile(r"^([A-Z])\.\s+(.+)$", re.MULTILINE)
+    matches = list(option_re.finditer(body))
+    if not matches:
+        return strip_note_tail(body), []
+    intro = strip_note_tail(body[:matches[0].start()])
+    options = [{"letter": m.group(1), "text": m.group(2).strip()} for m in matches]
+    return intro, options
+
+
+def parse_hotspot_body(body):
+    body = strip_intro_chrome(body)
+    aa = re.search(r"\*\*Answer Area\s*:?\*\*", body)
+    if not aa:
+        return strip_note_tail(body), []
+    intro = strip_note_tail(body[:aa.start()])
+    after = body[aa.end():]
+    slots = []
+    slot_re = re.compile(r"^-\s+(.+?):\s*\[\s*(.+?)\s*\]\s*$", re.MULTILINE)
+    for m in slot_re.finditer(after):
+        label = m.group(1).strip()
+        options = [o.strip() for o in m.group(2).split("|")]
+        slots.append({"label": label, "options": options})
+    return intro, slots
+
+
+def parse_dragdrop_body(body):
+    body = strip_intro_chrome(body)
+    src_m = re.search(r"\*\*Drag sources[^*]*\*\*", body)
+    tgt_m = re.search(r"\*\*Drop targets[^*]*\*\*", body)
+    if not (src_m and tgt_m):
+        return strip_note_tail(body), [], []
+    intro = strip_note_tail(body[:src_m.start()])
+    sources_text = body[src_m.end():tgt_m.start()]
+    targets_text = body[tgt_m.end():]
+
+    sources = []
+    for line in sources_text.split("\n"):
+        s = line.strip()
+        if s.startswith("-"):
+            sources.append(s[1:].strip())
+
+    targets = []
+    target_re = re.compile(r"^\s*\d+\.\s+(.+?)\s*[—–\-]\s*drop here\s*$", re.MULTILINE)
+    for m in target_re.finditer(targets_text):
+        targets.append({"label": m.group(1).strip()})
+    return intro, sources, targets
+
+
+def parse_correct_answer_block(answer_body):
+    """Parse the `**Correct answer:**` bullet list.
+
+    Handles two formats produced by different sub-agents:
+      A) `- LABEL: **PICK**`
+      B) `- **LABEL: PICK**`
     """
-    lines = body.strip().split("\n")
-    option_re = re.compile(r"^([A-Z])\.\s+(.+)$")
+    m = re.search(r"\*\*Correct\s+answers?\s*:?\*\*", answer_body, re.IGNORECASE)
+    if not m:
+        return []
+    after = answer_body[m.end():]
+    next_h2 = re.search(r"\n##\s", after)
+    if next_h2:
+        after = after[:next_h2.start()]
 
-    cleaned = []
-    options = []
-    in_options = False
-    for raw in lines:
-        line = raw.rstrip()
-        if line.startswith("# "):
+    out = []
+    for raw in after.split("\n"):
+        s = raw.strip()
+        if not s.startswith("-"):
             continue
-        m = option_re.match(line.strip())
-        if m and not in_options and not cleaned:
-            in_options = True
-        if m:
-            options.append({"letter": m.group(1), "text": m.group(2).strip()})
-            in_options = True
-        elif in_options and not line.strip():
+        s = re.sub(r"^-\s*", "", s)
+        s = s.replace("**", "").strip()
+        if ":" not in s:
             continue
-        elif in_options:
-            in_options = False
-            cleaned.append(line)
+        label, _, pick = s.partition(":")
+        label = label.strip()
+        pick = pick.strip().rstrip(".").strip()
+        if label and pick:
+            out.append({"label": label, "pick": pick})
+    return out
+
+
+def normalize_for_match(s):
+    return re.sub(r"\s+", " ", s.lower().strip().rstrip("."))
+
+
+def attach_correct_to_slots(slots, correct_pairs):
+    if not correct_pairs:
+        return slots
+    by_label = {normalize_for_match(p["label"]): p["pick"] for p in correct_pairs}
+    correct_in_order = [p["pick"] for p in correct_pairs]
+    for i, slot in enumerate(slots):
+        key = normalize_for_match(slot["label"])
+        pick = by_label.get(key)
+        if pick is None and i < len(correct_in_order):
+            pick = correct_in_order[i]
+        slot["correct"] = pick
+        if pick:
+            opt_match = next(
+                (
+                    o for o in slot["options"]
+                    if normalize_for_match(o) == normalize_for_match(pick)
+                ),
+                None,
+            )
+            if opt_match:
+                slot["correct"] = opt_match
+    return slots
+
+
+def attach_correct_to_targets(targets, correct_pairs, sources):
+    if not correct_pairs:
+        return targets
+    by_label = {normalize_for_match(p["label"]): p["pick"] for p in correct_pairs}
+    correct_in_order = [p["pick"] for p in correct_pairs]
+    for i, tgt in enumerate(targets):
+        key = normalize_for_match(tgt["label"])
+        pick = by_label.get(key)
+        if pick is None and i < len(correct_in_order):
+            pick = correct_in_order[i]
+        if pick:
+            src_match = next(
+                (
+                    s for s in sources
+                    if normalize_for_match(s) == normalize_for_match(pick)
+                ),
+                None,
+            )
+            tgt["correct"] = src_match or pick
         else:
-            cleaned.append(line)
-
-    question_text = "\n".join(cleaned).strip()
-    return question_text, options
+            tgt["correct"] = None
+    return targets
 
 
 def parse_references(answer_body):
@@ -91,10 +201,8 @@ def parse_references(answer_body):
 
 
 def detect_case_study(topic_num, question_num, q_body, a_body):
-    """Return the case study company name, or None."""
     link_m = re.search(r"\[([^\]]*)\]\((case-study[^)]*\.md)\)", q_body)
     link_target = link_m.group(2) if link_m else None
-
     if link_target == "case-study-contoso.md":
         return "Contoso"
     if topic_num == 3:
@@ -102,7 +210,6 @@ def detect_case_study(topic_num, question_num, q_body, a_body):
             return "Fabrikam"
         if 39 <= question_num <= 42:
             return "Contoso"
-
     combined = q_body + "\n" + a_body
     for name in KNOWN_COMPANIES:
         if re.search(rf"\b{name}\b", combined):
@@ -110,8 +217,18 @@ def detect_case_study(topic_num, question_num, q_body, a_body):
     return None
 
 
+def parse_letters(answer_str):
+    if not answer_str:
+        return []
+    letters = re.findall(r"\b[A-Z]\b", answer_str)
+    seen = []
+    for l in letters:
+        if l not in seen:
+            seen.append(l)
+    return seen
+
+
 def normalize_answer(raw):
-    """Pull a short displayable answer from the frontmatter value."""
     if not raw:
         return ""
     val = raw.strip()
@@ -140,26 +257,49 @@ def main():
             q_fm, q_body = parse_frontmatter(q_text)
             a_fm, a_body = parse_frontmatter(a_text)
 
-            question_text, options = parse_question_body(q_body)
             qnum = int(q_fm.get("question", q_file.stem.lstrip("q")))
             qtype = q_fm.get("type", "multiple-choice").strip()
             cs_flag = q_fm.get("case_study", "false").strip().lower() == "true"
             case_study = detect_case_study(topic_num, qnum, q_body, a_body) if cs_flag else None
-
             answer_value = normalize_answer(a_fm.get("answer", ""))
 
-            questions.append({
+            record = {
                 "id": f"topic-{topic_num}/{q_file.stem}",
                 "topic": topic_num,
                 "question_number": qnum,
                 "type": qtype,
                 "case_study": case_study,
-                "question_text": question_text,
-                "options": options,
                 "answer": answer_value,
                 "explanation_md": a_body.strip(),
                 "references": parse_references(a_body),
-            })
+            }
+
+            if qtype in ("multiple-choice", "multi-select"):
+                intro, options = parse_choice_body(q_body)
+                record["question_text"] = intro
+                record["options"] = options
+                record["correct_letters"] = parse_letters(answer_value)
+            elif qtype == "hotspot":
+                intro, slots = parse_hotspot_body(q_body)
+                correct_pairs = parse_correct_answer_block(a_body)
+                slots = attach_correct_to_slots(slots, correct_pairs)
+                record["question_text"] = intro
+                record["options"] = []
+                record["slots"] = slots
+            elif qtype == "drag-drop":
+                intro, sources, targets = parse_dragdrop_body(q_body)
+                correct_pairs = parse_correct_answer_block(a_body)
+                targets = attach_correct_to_targets(targets, correct_pairs, sources)
+                record["question_text"] = intro
+                record["options"] = []
+                record["sources"] = sources
+                record["targets"] = targets
+            else:
+                intro, options = parse_choice_body(q_body)
+                record["question_text"] = intro
+                record["options"] = options
+
+            questions.append(record)
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT, "w", encoding="utf-8") as f:
@@ -170,12 +310,24 @@ def main():
             ensure_ascii=False,
         )
 
-    by_topic = {}
+    by_type = {}
+    incomplete = []
     for q in questions:
-        by_topic[q["topic"]] = by_topic.get(q["topic"], 0) + 1
+        by_type[q["type"]] = by_type.get(q["type"], 0) + 1
+        if q["type"] == "hotspot" and any(s.get("correct") is None for s in q.get("slots", [])):
+            incomplete.append(q["id"] + " (hotspot missing correct)")
+        if q["type"] == "drag-drop" and any(t.get("correct") is None for t in q.get("targets", [])):
+            incomplete.append(q["id"] + " (drag-drop missing correct)")
+        if q["type"] == "multi-select" and not q.get("correct_letters"):
+            incomplete.append(q["id"] + " (multi-select missing letters)")
+
     print(f"Wrote {len(questions)} questions to {OUTPUT.relative_to(ROOT)}")
-    for t, n in sorted(by_topic.items()):
-        print(f"  topic-{t}: {n}")
+    for t, n in sorted(by_type.items()):
+        print(f"  {t}: {n}")
+    if incomplete:
+        print("\nIncomplete records:")
+        for line in incomplete:
+            print(f"  - {line}")
 
 
 if __name__ == "__main__":
