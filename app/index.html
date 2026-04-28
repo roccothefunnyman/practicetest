@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice Questions</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">Practice Questions</div>
+    </div>
+    <div class="progress">
+      <div class="progress-text"><span id="progress-num">0</span> / <span id="progress-total">0</span></div>
+      <div class="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <article id="slide" class="slide" aria-live="polite">
+      <div class="slide-loading">Loading questions...</div>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <button id="reveal-btn" class="btn btn-primary" hidden>Reveal Answer</button>
+    <button id="next-btn" class="btn btn-secondary" hidden>Next Question</button>
+    <button id="restart-btn" class="btn btn-tertiary" hidden>Start New Session</button>
+    <div class="footer-meta">
+      <span class="kbd-hint">Press <kbd>Space</kbd> to reveal, <kbd>→</kbd> for next</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

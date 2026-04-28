@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Source PDFs and raw extraction artifacts (kept locally, not published)
+*.pdf
+_work/
