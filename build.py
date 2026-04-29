@@ -13,8 +13,17 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 EXTRACTED = ROOT / "extracted"
 OUTPUT = ROOT / "app" / "questions.json"
+CATEGORIES = ROOT / "app" / "categories.json"
 
 KNOWN_COMPANIES = ["Fabrikam", "Contoso", "Adatum", "Litware", "Northwind", "Tailwind"]
+
+# AB-100 official skills-measured domains.
+# Source: https://learn.microsoft.com/credentials/certifications/resources/study-guides/ab-100
+AB100_DOMAINS = {
+    "plan":   {"label": "Plan",   "weight_pct_min": 25, "weight_pct_max": 30},
+    "design": {"label": "Design", "weight_pct_min": 25, "weight_pct_max": 30},
+    "deploy": {"label": "Deploy", "weight_pct_min": 40, "weight_pct_max": 45},
+}
 
 
 def parse_frontmatter(text):
@@ -237,7 +246,15 @@ def normalize_answer(raw):
     return val
 
 
+def load_categories():
+    if not CATEGORIES.exists():
+        return {}
+    with open(CATEGORIES, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def main():
+    categories = load_categories()
     questions = []
     for topic_num in (1, 2, 3):
         topic_dir = EXTRACTED / f"topic-{topic_num}"
@@ -263,12 +280,14 @@ def main():
             case_study = detect_case_study(topic_num, qnum, q_body, a_body) if cs_flag else None
             answer_value = normalize_answer(a_fm.get("answer", ""))
 
+            qid = f"topic-{topic_num}/{q_file.stem}"
             record = {
-                "id": f"topic-{topic_num}/{q_file.stem}",
+                "id": qid,
                 "topic": topic_num,
                 "question_number": qnum,
                 "type": qtype,
                 "case_study": case_study,
+                "category": categories.get(qid),
                 "answer": answer_value,
                 "explanation_md": a_body.strip(),
                 "references": parse_references(a_body),
@@ -304,16 +323,27 @@ def main():
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT, "w", encoding="utf-8") as f:
         json.dump(
-            {"questions": questions, "total": len(questions)},
+            {
+                "questions": questions,
+                "total": len(questions),
+                "domains": AB100_DOMAINS,
+            },
             f,
             indent=2,
             ensure_ascii=False,
         )
 
     by_type = {}
+    by_cat = {}
+    uncategorized = []
     incomplete = []
     for q in questions:
         by_type[q["type"]] = by_type.get(q["type"], 0) + 1
+        cat = q.get("category")
+        if cat:
+            by_cat[cat] = by_cat.get(cat, 0) + 1
+        else:
+            uncategorized.append(q["id"])
         if q["type"] == "hotspot" and any(s.get("correct") is None for s in q.get("slots", [])):
             incomplete.append(q["id"] + " (hotspot missing correct)")
         if q["type"] == "drag-drop" and any(t.get("correct") is None for t in q.get("targets", [])):
@@ -324,6 +354,17 @@ def main():
     print(f"Wrote {len(questions)} questions to {OUTPUT.relative_to(ROOT)}")
     for t, n in sorted(by_type.items()):
         print(f"  {t}: {n}")
+    if by_cat:
+        total = sum(by_cat.values())
+        print("\nAB-100 domain distribution:")
+        for code in ("plan", "design", "deploy"):
+            n = by_cat.get(code, 0)
+            pct = (n / total * 100) if total else 0
+            print(f"  {code}: {n} ({pct:.1f}%)")
+    if uncategorized:
+        print(f"\n{len(uncategorized)} uncategorized question(s) (add to app/categories.json):")
+        for qid in uncategorized:
+            print(f"  - {qid}")
     if incomplete:
         print("\nIncomplete records:")
         for line in incomplete:

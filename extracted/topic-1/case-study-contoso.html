@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic 1 Case Study: Contoso, Ltd.</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f1419;
+    --surface: #1a2129;
+    --surface-2: #232c36;
+    --border: #2d3845;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #58a6ff;
+    --warn: #f0883e;
+    --good: #3fb950;
+    --bad: #f85149;
+    --purple: #b392f0;
+    --teal: #56d4dd;
+    --tag: #2a3441;
+    --shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #0969da;
+    --warn: #bc4c00;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --purple: #8250df;
+    --teal: #0c7c8a;
+    --tag: #eef1f4;
+    --shadow: 0 6px 18px rgba(31,35,40,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16.5px/1.55 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    padding: 28px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  h1 { margin: 0 0 4px; font-size: 34px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 17px; }
+  .theme-toggle {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .theme-toggle:hover { background: var(--surface-2); }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .tag {
+    background: var(--tag);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    border: 1px solid var(--border);
+  }
+  .tag.accent { color: var(--accent); border-color: var(--accent); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .tag.good { color: var(--good); border-color: var(--good); }
+  .tag.purple { color: var(--purple); border-color: var(--purple); }
+  .tag.teal { color: var(--teal); border-color: var(--teal); }
+  .grid {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .card h2 .pill {
+    float: right;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface-2);
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 7px; font-size: 15.5px; }
+  li::marker { color: var(--muted); }
+  .full-row { grid-column: 1 / -1; }
+
+  .exec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .exec {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+  .exec .role {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 5px;
+  }
+  .exec.cto { border-left-color: var(--accent); }
+  .exec.cio { border-left-color: var(--purple); }
+  .exec.cfo { border-left-color: var(--good); }
+  .exec.ciso { border-left-color: var(--warn); }
+  .exec.ceo { border-left-color: var(--teal); }
+  .exec .role.cto { color: var(--accent); }
+  .exec .role.cio { color: var(--purple); }
+  .exec .role.cfo { color: var(--good); }
+  .exec .role.ciso { color: var(--warn); }
+  .exec .role.ceo { color: var(--teal); }
+
+  .agent-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .agent {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .agent.prebuilt { border-top: 4px solid var(--accent); }
+  .agent.custom { border-top: 4px solid var(--purple); }
+  .agent h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .agent.prebuilt h3 { color: var(--accent); }
+  .agent.custom h3 { color: var(--purple); }
+
+  .stack-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+  .chip {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 11px;
+    font-size: 13.5px;
+  }
+  .chip strong { color: var(--accent); }
+
+  .req { border-left: 4px solid var(--good); }
+  .moni { border-left: 4px solid var(--warn); }
+
+  @media (max-width: 760px) {
+    body { padding: 18px; font-size: 16px; }
+    h1 { font-size: 28px; }
+    .agent-pair { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <h1>Contoso, Ltd.</h1>
+      <div class="subtitle">Topic 1 case study (also appears in Topic 3 q39 to q42).</div>
+    </div>
+    <button id="theme-toggle" class="theme-toggle" type="button">Light mode</button>
+  </div>
+
+  <div class="meta-row">
+    <span class="tag">High-tech manufacturing</span>
+    <span class="tag accent">North America operations</span>
+    <span class="tag teal">Multiple legal entities</span>
+    <span class="tag teal">Multiple Azure subscriptions</span>
+    <span class="tag warn">Patents and proprietary IP, closely guarded</span>
+    <span class="tag good">Preparing for rapid growth</span>
+  </div>
+
+  <div class="grid">
+
+    <div class="card full-row">
+      <h2>Already running today</h2>
+      <div class="stack-row">
+        <span class="chip"><strong>Dynamics 365 Finance</strong></span>
+        <span class="chip"><strong>Dynamics 365 Supply Chain Management</strong></span>
+        <span class="chip"><strong>Dynamics 365 Commerce</strong></span>
+        <span class="chip"><strong>Custom MCP server</strong> in R&amp;D, holds product specs and compliance data</span>
+      </div>
+    </div>
+
+    <div class="card full-row">
+      <h2>Executive responsibilities <span class="pill">Who owns what</span></h2>
+      <div class="exec-grid">
+        <div class="exec cto">
+          <div class="role cto">CTO</div>
+          Pick one prebuilt D365 agent and one custom Copilot Studio agent for initial rollout.
+          Track user feedback on response quality, poor feedback triggers reengineering.
+        </div>
+        <div class="exec cio">
+          <div class="role cio">CIO</div>
+          Ensure correct security labels are applied to data used by AI agents.
+        </div>
+        <div class="exec cfo">
+          <div class="role cfo">CFO</div>
+          ROI analysis. Quarterly: estimated vs. actual via Copilot Studio agent usage estimator.
+          Watch abandoned vs. resolved sessions (credit waste signal).
+        </div>
+        <div class="exec ciso">
+          <div class="role ciso">CISO</div>
+          Discover and inventory AI resources for auditing. Monthly compliance and security audit.
+          Wants to see how much sensitive data was accessed per agent run, and by whom.
+        </div>
+        <div class="exec ceo">
+          <div class="role ceo">CEO</div>
+          All solutions follow industry-standard responsible AI.
+          Quarterly assessment must verify reliability, interpretability, fairness, compliance using Microsoft-recommended tools.
+        </div>
+      </div>
+    </div>
+
+    <div class="card full-row">
+      <h2>Two AI agents to deploy <span class="pill">Initial phase</span></h2>
+      <div class="agent-pair">
+        <div class="agent prebuilt">
+          <h3>Prebuilt agent in D365 SCM</h3>
+          <ul>
+            <li>CTO has not picked one yet.</li>
+            <li>CTO wants to view available <strong>agent templates</strong> to find max business value.</li>
+            <li>Agent capabilities must be previewed in a discovery meeting with relevant stakeholders.</li>
+          </ul>
+        </div>
+        <div class="agent custom">
+          <h3>Custom Copilot Studio agent</h3>
+          <ul>
+            <li>Built as a low-code solution.</li>
+            <li>Uses data from D365 Supply Chain Management.</li>
+            <li>Answers questions for the manufacturing team.</li>
+            <li>Accessible from Microsoft Teams.</li>
+            <li>Accessible from inside D365 Supply Chain Management.</li>
+            <li>Must eventually connect to other agents, selected by description (multi-agent orchestration).</li>
+            <li>Topics selected by <strong>description, not trigger phrase</strong> (generative orchestration).</li>
+            <li>Must answer product spec questions using existing tech (the R&amp;D MCP server).</li>
+            <li>Must use D365 SCM business logic stored outside the application (Dataverse plug-ins / external code).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card req">
+      <h2>AI adoption guardrails <span class="pill">Across the board</span></h2>
+      <ul>
+        <li>Every initiative needs a <strong>business use case</strong>.</li>
+        <li>Every initiative needs a <strong>defined audience profile</strong>.</li>
+        <li>Every initiative needs <strong>estimated ROI</strong> comparing current cost to AI cost.</li>
+        <li>R&amp;D's existing MCP server is the source for product specs and compliance, do not duplicate it.</li>
+      </ul>
+    </div>
+
+    <div class="card moni">
+      <h2>Analysis, reporting, troubleshooting <span class="pill">Ongoing</span></h2>
+      <ul>
+        <li><strong>Monthly</strong> CISO audit for compliance and security.</li>
+        <li><strong>Quarterly</strong> CFO ROI review using the Copilot Studio agent usage estimator.</li>
+        <li>Track sensitive data access per agent run (user + volume).</li>
+        <li>Capture user feedback on response quality during interactions.</li>
+        <li>Quarterly CEO assessment, Microsoft-recommended tools, must cover reliability, interpretability, fairness, compliance.</li>
+        <li>Daily abandoned vs. resolved session count, watch for inefficient credit usage.</li>
+      </ul>
+    </div>
+
+    <div class="card full-row">
+      <h2>Likely Microsoft tech in play</h2>
+      <div class="stack-row">
+        <span class="chip"><strong>Microsoft Copilot Studio</strong> custom agent + analytics</span>
+        <span class="chip"><strong>D365 SCM agent templates</strong> prebuilt agents</span>
+        <span class="chip"><strong>Microsoft Teams channel</strong> for the agent</span>
+        <span class="chip"><strong>Generative orchestration</strong> description-based topics</span>
+        <span class="chip"><strong>Multi-agent / connect to agents</strong> agent-to-agent calls</span>
+        <span class="chip"><strong>MCP tool</strong> R&amp;D product specs</span>
+        <span class="chip"><strong>Dataverse plug-ins</strong> external business logic</span>
+        <span class="chip"><strong>Microsoft Purview</strong> sensitivity labels, AI Hub, audit, DSPM for AI</span>
+        <span class="chip"><strong>Defender for Cloud AI security posture</strong> CISO inventory</span>
+        <span class="chip"><strong>Copilot Studio agent usage estimator</strong> CFO ROI</span>
+        <span class="chip"><strong>Azure AI Foundry / Responsible AI dashboard</strong> CEO RAI metrics</span>
+        <span class="chip"><strong>Copilot Studio analytics</strong> abandoned vs. resolved sessions, feedback</span>
+      </div>
+    </div>
+
+    <div class="card full-row">
+      <h2>Quick recall hooks</h2>
+      <ul>
+        <li><strong>"Topics by description, not trigger phrase"</strong> = generative orchestration in Copilot Studio.</li>
+        <li><strong>"Connect to other agents picked by description"</strong> = agent-to-agent / multi-agent orchestration.</li>
+        <li><strong>"Existing MCP server with product specs"</strong> = wire it as an MCP tool in the agent, do not rebuild.</li>
+        <li><strong>"Business logic outside D365 SCM"</strong> = Dataverse plug-ins / external code, called from the agent.</li>
+        <li><strong>"How much sensitive data was accessed and by whom"</strong> = Microsoft Purview AI Hub / DSPM for AI / audit.</li>
+        <li><strong>"Discover and inventory AI resources"</strong> = Defender for Cloud AI security posture management.</li>
+        <li><strong>"Reliability, interpretability, fairness, compliance"</strong> = Responsible AI dashboard / RAI assessments.</li>
+        <li><strong>"Estimated vs. actual ROI"</strong> = Copilot Studio agent usage estimator.</li>
+        <li><strong>"Abandoned vs. resolved sessions"</strong> = Copilot Studio analytics, session outcomes.</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "quiz_theme";
+  var btn = document.getElementById("theme-toggle");
+  function apply(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    btn.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  }
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch(e) {}
+  var params = new URLSearchParams(location.search);
+  var initial = params.get("theme") || stored || "dark";
+  apply(initial);
+  btn.addEventListener("click", function(){
+    var current = document.documentElement.getAttribute("data-theme") || "dark";
+    var next = current === "dark" ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem(KEY, next); } catch(e) {}
+  });
+})();
+</script>
+</body>
+</html>

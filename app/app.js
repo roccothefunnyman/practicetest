@@ -2,20 +2,98 @@
   "use strict";
 
   const SESSION_KEY = "practice_session_v1";
+  const STATS_KEY = "quiz_stats_v1";
+  const THEME_KEY = "quiz_theme";
+
   const slideEl = document.getElementById("slide");
   const revealBtn = document.getElementById("reveal-btn");
   const nextBtn = document.getElementById("next-btn");
   const restartBtn = document.getElementById("restart-btn");
-  const progressNum = document.getElementById("progress-num");
-  const progressTotal = document.getElementById("progress-total");
-  const progressFill = document.getElementById("progress-fill");
+  const themeBtn = document.getElementById("theme-toggle");
+  const resetStatsBtn = document.getElementById("reset-stats-btn");
+
+  const overallAnsweredEl = document.getElementById("overall-answered");
+  const overallTotalEl = document.getElementById("overall-total");
+  const overallCorrectEl = document.getElementById("overall-correct");
+  const overallWrongEl = document.getElementById("overall-wrong");
+  const overallFillCorrect = document.getElementById("overall-fill-correct");
+  const overallFillWrong = document.getElementById("overall-fill-wrong");
+  const sectionGridEl = document.getElementById("section-grid");
+
+  const csModal = document.getElementById("cs-modal");
+  const csFrame = document.getElementById("cs-frame");
+  const csTitle = document.getElementById("cs-title");
+
+  const DOMAIN_FALLBACK = {
+    plan:   { label: "Plan" },
+    design: { label: "Design" },
+    deploy: { label: "Deploy" },
+  };
+
+  const CASE_STUDY_PATHS = {
+    Fabrikam: "../extracted/topic-1/case-study.html",
+    Contoso:  "../extracted/topic-1/case-study-contoso.html",
+  };
 
   let questions = [];
+  let domains = DOMAIN_FALLBACK;
   let order = [];
   let cursor = 0;
   let revealed = false;
   let picks = null;
+  let stats = loadStats();
 
+  /* ---------- Theme ---------- */
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (themeBtn) {
+      themeBtn.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+    }
+    if (csFrame && csFrame.contentDocument && csFrame.contentDocument.documentElement) {
+      try { csFrame.contentDocument.documentElement.setAttribute("data-theme", theme); } catch (_) {}
+    }
+  }
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") || "dark";
+  }
+  function initTheme() {
+    let t = "dark";
+    try { t = localStorage.getItem(THEME_KEY) || "dark"; } catch (_) {}
+    applyTheme(t === "light" ? "light" : "dark");
+  }
+  themeBtn.addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+    applyTheme(next);
+  });
+
+  /* ---------- Stats ---------- */
+  function loadStats() {
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (_) { return {}; }
+  }
+  function saveStats() {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch (_) {}
+  }
+  function recordResult(qid, result) {
+    if (!qid) return;
+    if (result === "correct" || result === "wrong") {
+      stats[qid] = result;
+      saveStats();
+    }
+  }
+  resetStatsBtn.addEventListener("click", () => {
+    if (!confirm("Clear correct/wrong history for all questions?")) return;
+    stats = {};
+    saveStats();
+    renderProgress();
+  });
+
+  /* ---------- Session ---------- */
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -24,7 +102,6 @@
     }
     return a;
   }
-
   function loadSession() {
     try {
       const raw = sessionStorage.getItem(SESSION_KEY);
@@ -34,13 +111,10 @@
       return parsed;
     } catch (_) { return null; }
   }
-
   function saveSession() {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ order, cursor }));
   }
-
   function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
-
   function startNewSession() {
     order = shuffle(questions.map((_, i) => i));
     cursor = 0;
@@ -50,6 +124,7 @@
     render();
   }
 
+  /* ---------- Helpers ---------- */
   function escapeHtml(s) {
     return String(s)
       .replace(/&/g, "&amp;")
@@ -58,17 +133,13 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
-
   function renderMarkdown(md) {
     return window.marked ? window.marked.parse(md) : escapeHtml(md);
   }
-
   function normalize(s) {
     return String(s || "").trim().replace(/\s+/g, " ").replace(/\.$/, "").toLowerCase();
   }
-
   function topicLabel(t) { return `Topic ${t}`; }
-
   function typeLabel(t) {
     return ({
       "multiple-choice": "Multiple Choice",
@@ -76,6 +147,9 @@
       "hotspot": "Hotspot",
       "drag-drop": "Drag & Drop",
     })[t] || t;
+  }
+  function categoryLabel(code) {
+    return (domains[code] && domains[code].label) || (DOMAIN_FALLBACK[code] && DOMAIN_FALLBACK[code].label) || null;
   }
 
   function initPicksFor(q) {
@@ -87,7 +161,6 @@
       default: return { letter: null };
     }
   }
-
   function hasAnyPicks(q, p) {
     if (!p) return false;
     switch (q.type) {
@@ -99,13 +172,71 @@
     }
   }
 
+  /* ---------- Progress bars ---------- */
+  function renderProgress() {
+    const total = questions.length;
+    let correct = 0, wrong = 0;
+    const byCat = { plan: { total: 0, correct: 0, wrong: 0 },
+                    design: { total: 0, correct: 0, wrong: 0 },
+                    deploy: { total: 0, correct: 0, wrong: 0 } };
+    questions.forEach(q => {
+      const cat = q.category;
+      if (cat && byCat[cat]) byCat[cat].total += 1;
+      const s = stats[q.id];
+      if (s === "correct") {
+        correct += 1;
+        if (cat && byCat[cat]) byCat[cat].correct += 1;
+      } else if (s === "wrong") {
+        wrong += 1;
+        if (cat && byCat[cat]) byCat[cat].wrong += 1;
+      }
+    });
+
+    overallAnsweredEl.textContent = String(correct + wrong);
+    overallTotalEl.textContent = String(total);
+    overallCorrectEl.textContent = String(correct);
+    overallWrongEl.textContent = String(wrong);
+    overallFillCorrect.style.width = total ? (correct / total * 100) + "%" : "0%";
+    overallFillWrong.style.width   = total ? (wrong   / total * 100) + "%" : "0%";
+
+    const order = ["plan", "design", "deploy"];
+    sectionGridEl.innerHTML = order.map(code => {
+      const c = byCat[code];
+      if (c.total === 0) return "";
+      const pctC = c.correct / c.total * 100;
+      const pctW = c.wrong   / c.total * 100;
+      return `
+        <div class="progress-row">
+          <div class="progress-label">
+            <span class="progress-name">${escapeHtml(categoryLabel(code) || code)}</span>
+            <span class="progress-counts">
+              ${c.correct + c.wrong} / ${c.total}
+              <span class="progress-detail">
+                <span class="dot dot-good"></span>${c.correct}
+                <span class="dot dot-bad"></span>${c.wrong}
+              </span>
+            </span>
+          </div>
+          <div class="progress-bar">
+            <div class="seg seg-correct" style="width:${pctC}%"></div>
+            <div class="seg seg-wrong" style="width:${pctW}%"></div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  /* ---------- Slide rendering ---------- */
   function renderHeader(q) {
     const tags = [
-      `<span class="tag">${topicLabel(q.topic)} · Q${q.question_number}</span>`,
+      `<span class="tag">${topicLabel(q.topic)} &middot; Q${q.question_number}</span>`,
       `<span class="tag tag-type">${typeLabel(q.type)}</span>`,
     ];
+    if (q.category) {
+      tags.push(`<span class="tag tag-cat-${escapeHtml(q.category)}">${escapeHtml(categoryLabel(q.category) || q.category)}</span>`);
+    }
     if (q.case_study) {
       tags.push(`<span class="tag tag-case">Case Study: ${escapeHtml(q.case_study)}</span>`);
+      tags.push(`<button class="cs-button" data-cs="${escapeHtml(q.case_study)}" type="button">View case study</button>`);
     }
     return `<div class="slide-meta">${tags.join("")}</div>
             <div class="question-text">${renderMarkdown(q.question_text || "")}</div>`;
@@ -147,7 +278,7 @@
       }
       const dis = revealed ? "disabled" : "";
       return `<button class="${cls}" data-letter="${opt.letter}" ${dis}>
-        <span class="option-checkbox">${isPicked ? "✓" : ""}</span>
+        <span class="option-checkbox">${isPicked ? "&#10003;" : ""}</span>
         <span class="option-letter">${opt.letter}</span>
         <span class="option-text">${escapeHtml(opt.text)}</span>
       </button>`;
@@ -165,12 +296,12 @@
       if (isRight) {
         resultHtml = `<div class="slot-result">
           <span class="slot-pick correct-pick">${escapeHtml(picked)}</span>
-          <span class="slot-icon">✓</span>
+          <span class="slot-icon">&#10003;</span>
         </div>`;
       } else if (picked) {
         resultHtml = `<div class="slot-result">
           <span class="slot-pick wrong-pick">${escapeHtml(picked)}</span>
-          <span class="slot-icon">✗</span>
+          <span class="slot-icon">&#10007;</span>
           <div class="slot-correct-text">Correct: <strong>${escapeHtml(correct || "")}</strong></div>
         </div>`;
       } else {
@@ -180,7 +311,7 @@
         </div>`;
       }
     } else {
-      const optsHtml = ['<option value="">— select —</option>']
+      const optsHtml = ['<option value="">&mdash; select &mdash;</option>']
         .concat(options.map(o => `<option value="${escapeHtml(o)}" ${picked === o ? "selected" : ""}>${escapeHtml(o)}</option>`))
         .join("");
       selectHtml = `<select class="slot-select" data-idx="${idx}">${optsHtml}</select>`;
@@ -253,7 +384,7 @@
     if (!revealed) return "";
     const v = gradeAll(q);
     if (v === "correct") {
-      return `<div class="verdict verdict-correct">✓ Correct</div>`;
+      return `<div class="verdict verdict-correct">&#10003; Correct</div>`;
     } else if (v === "wrong") {
       const total = q.type === "hotspot" ? (q.slots || []).length
                   : q.type === "drag-drop" ? (q.targets || []).length
@@ -268,9 +399,9 @@
         }
         detail = `${right} of ${total} correct`;
       }
-      return `<div class="verdict verdict-wrong">✗ ${detail} — see explanation below</div>`;
+      return `<div class="verdict verdict-wrong">&#10007; ${detail} &mdash; see explanation below</div>`;
     } else {
-      return `<div class="verdict verdict-revealed">Answer revealed — see explanation below</div>`;
+      return `<div class="verdict verdict-revealed">Answer revealed &mdash; see explanation below</div>`;
     }
   }
 
@@ -283,9 +414,6 @@
   function render() {
     if (cursor >= order.length) { renderSummary(); return; }
     const q = questions[order[cursor]];
-    progressNum.textContent = String(cursor + (revealed ? 1 : 0));
-    progressTotal.textContent = String(order.length);
-    progressFill.style.width = ((cursor + (revealed ? 1 : 0)) / order.length) * 100 + "%";
 
     if (!picks) picks = initPicksFor(q);
 
@@ -306,17 +434,19 @@
 
     attachHandlers(q);
     updateFooter(q);
+    renderProgress();
   }
 
   function attachHandlers(q) {
+    slideEl.querySelectorAll(".cs-button").forEach(btn => {
+      btn.addEventListener("click", () => openCaseStudy(btn.dataset.cs));
+    });
     if (revealed) return;
     if (q.type === "multiple-choice") {
       slideEl.querySelectorAll(".option").forEach(btn => {
         btn.addEventListener("click", () => {
           picks.letter = btn.dataset.letter;
-          revealed = true;
-          saveSession();
-          render();
+          finalizeReveal(q);
         });
       });
     } else if (q.type === "multi-select") {
@@ -337,6 +467,16 @@
         });
       });
     }
+  }
+
+  function finalizeReveal(q) {
+    revealed = true;
+    const v = gradeAll(q);
+    if (v === "correct" || v === "wrong") {
+      recordResult(q.id, v);
+    }
+    saveSession();
+    render();
   }
 
   function updateFooter(q) {
@@ -360,9 +500,8 @@
 
   function submit() {
     if (revealed || cursor >= order.length) return;
-    revealed = true;
-    saveSession();
-    render();
+    const q = questions[order[cursor]];
+    finalizeReveal(q);
   }
 
   function next() {
@@ -375,16 +514,24 @@
   }
 
   function renderSummary() {
-    progressNum.textContent = String(order.length);
-    progressFill.style.width = "100%";
+    let correct = 0, wrong = 0;
+    questions.forEach(q => {
+      const s = stats[q.id];
+      if (s === "correct") correct += 1;
+      else if (s === "wrong") wrong += 1;
+    });
     slideEl.innerHTML = `
       <div class="summary">
         <h2>Session complete</h2>
         <p>You worked through every question in this session.</p>
         <div class="stat-row">
           <div>
-            <span class="stat-num">${order.length}</span>
-            <span class="stat-label">Questions reviewed</span>
+            <span class="stat-num ok">${correct}</span>
+            <span class="stat-label">Correct overall</span>
+          </div>
+          <div>
+            <span class="stat-num no">${wrong}</span>
+            <span class="stat-label">Wrong overall</span>
           </div>
           <div>
             <span class="stat-num">${questions.length}</span>
@@ -396,8 +543,29 @@
     revealBtn.hidden = true;
     nextBtn.hidden = true;
     restartBtn.hidden = false;
+    renderProgress();
   }
 
+  /* ---------- Case study modal ---------- */
+  function openCaseStudy(name) {
+    const path = CASE_STUDY_PATHS[name];
+    if (!path) return;
+    csTitle.textContent = "Case Study: " + name;
+    const sep = path.indexOf("?") === -1 ? "?" : "&";
+    csFrame.src = path + sep + "theme=" + currentTheme();
+    csModal.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeCaseStudy() {
+    csModal.hidden = true;
+    csFrame.src = "about:blank";
+    document.body.style.overflow = "";
+  }
+  csModal.addEventListener("click", (e) => {
+    if (e.target.dataset && "close" in e.target.dataset) closeCaseStudy();
+  });
+
+  /* ---------- Wiring ---------- */
   revealBtn.addEventListener("click", submit);
   nextBtn.addEventListener("click", next);
   restartBtn.addEventListener("click", () => { clearSession(); startNewSession(); });
@@ -405,14 +573,27 @@
   document.addEventListener("keydown", e => {
     const tag = e.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.key === "Escape" && !csModal.hidden) {
+      e.preventDefault();
+      closeCaseStudy();
+      return;
+    }
     if (e.code === "Space" && !revealBtn.hidden) {
       e.preventDefault();
       submit();
     } else if (e.code === "ArrowRight" && !nextBtn.hidden) {
       e.preventDefault();
       next();
+    } else if ((e.key === "c" || e.key === "C") && csModal.hidden) {
+      const q = questions[order[cursor]];
+      if (q && q.case_study && CASE_STUDY_PATHS[q.case_study]) {
+        e.preventDefault();
+        openCaseStudy(q.case_study);
+      }
     }
   });
+
+  initTheme();
 
   fetch("questions.json", { cache: "no-store" })
     .then(r => {
@@ -421,6 +602,7 @@
     })
     .then(data => {
       questions = (data.questions || []).slice();
+      domains = data.domains || DOMAIN_FALLBACK;
       if (questions.length === 0) {
         slideEl.innerHTML = `<div class="slide-loading">No questions found. Run <code>build.py</code> first.</div>`;
         return;
@@ -439,6 +621,6 @@
       render();
     })
     .catch(err => {
-      slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>py -m http.server</code>) — opening index.html directly will block fetch().</div>`;
+      slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>py -m http.server</code>) &mdash; opening index.html directly will block fetch().</div>`;
     });
 })();

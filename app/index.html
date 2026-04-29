@@ -13,11 +13,33 @@
       <div class="brand-mark"></div>
       <div class="brand-text">Practice Questions</div>
     </div>
-    <div class="progress">
-      <div class="progress-text"><span id="progress-num">0</span> / <span id="progress-total">0</span></div>
-      <div class="progress-bar"><div id="progress-fill"></div></div>
+
+    <div class="top-actions">
+      <button id="reset-stats-btn" class="ghost-btn" type="button" title="Clear answered/wrong history for all questions">Reset progress</button>
+      <button id="theme-toggle" class="ghost-btn" type="button" title="Toggle light or dark mode">Light mode</button>
     </div>
   </header>
+
+  <section class="progress-block">
+    <div class="progress-row progress-row-overall">
+      <div class="progress-label">
+        <span class="progress-name">Overall</span>
+        <span class="progress-counts">
+          <span id="overall-answered">0</span> / <span id="overall-total">0</span>
+          <span class="progress-detail">
+            <span class="dot dot-good"></span><span id="overall-correct">0</span> correct
+            <span class="dot dot-bad"></span><span id="overall-wrong">0</span> wrong
+          </span>
+        </span>
+      </div>
+      <div class="progress-bar">
+        <div class="seg seg-correct" id="overall-fill-correct"></div>
+        <div class="seg seg-wrong" id="overall-fill-wrong"></div>
+      </div>
+    </div>
+
+    <div class="section-grid" id="section-grid"></div>
+  </section>
 
   <main class="stage">
     <article id="slide" class="slide" aria-live="polite">
@@ -30,9 +52,20 @@
     <button id="next-btn" class="btn btn-secondary" hidden>Next Question</button>
     <button id="restart-btn" class="btn btn-tertiary" hidden>Start New Session</button>
     <div class="footer-meta">
-      <span class="kbd-hint">Press <kbd>Space</kbd> to reveal, <kbd>→</kbd> for next</span>
+      <span class="kbd-hint">Press <kbd>Space</kbd> to reveal, <kbd>&rarr;</kbd> for next, <kbd>C</kbd> for case study</span>
     </div>
   </footer>
+</div>
+
+<div id="cs-modal" class="cs-modal" hidden>
+  <div class="cs-backdrop" data-close></div>
+  <div class="cs-dialog" role="dialog" aria-modal="true" aria-labelledby="cs-title">
+    <div class="cs-header">
+      <div id="cs-title" class="cs-title">Case Study</div>
+      <button id="cs-close" class="ghost-btn" type="button" data-close>Close</button>
+    </div>
+    <iframe id="cs-frame" title="Case study visual" src="about:blank"></iframe>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
