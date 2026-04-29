@@ -9,6 +9,9 @@
   const revealBtn = document.getElementById("reveal-btn");
   const nextBtn = document.getElementById("next-btn");
   const restartBtn = document.getElementById("restart-btn");
+  const backBtn = document.getElementById("back-btn");
+  const clearBtn = document.getElementById("clear-btn");
+  const copyBtn = document.getElementById("copy-btn");
   const themeBtn = document.getElementById("theme-toggle");
   const resetStatsBtn = document.getElementById("reset-stats-btn");
 
@@ -481,10 +484,14 @@
 
   function updateFooter(q) {
     const isClickAuto = q.type === "multiple-choice";
+    const canCopy = q.type === "multiple-choice" || q.type === "multi-select";
+    backBtn.hidden = cursor === 0;
+    copyBtn.hidden = !canCopy;
     if (revealed) {
       revealBtn.hidden = true;
       nextBtn.hidden = false;
       restartBtn.hidden = false;
+      clearBtn.hidden = true;
       nextBtn.textContent = cursor === order.length - 1 ? "Finish" : "Next Question";
     } else {
       if (isClickAuto) {
@@ -493,6 +500,7 @@
         revealBtn.hidden = false;
         revealBtn.textContent = hasAnyPicks(q, picks) ? "Submit Answer" : "Show Answer";
       }
+      clearBtn.hidden = !hasAnyPicks(q, picks);
       nextBtn.hidden = true;
       restartBtn.hidden = true;
     }
@@ -511,6 +519,76 @@
     picks = null;
     saveSession();
     render();
+  }
+
+  function back() {
+    if (cursor <= 0) return;
+    cursor -= 1;
+    revealed = false;
+    picks = null;
+    saveSession();
+    render();
+  }
+
+  function clearPicks() {
+    if (revealed) return;
+    if (cursor >= order.length) return;
+    const q = questions[order[cursor]];
+    picks = initPicksFor(q);
+    render();
+  }
+
+  function questionPlainText(q) {
+    const stem = (q.question_text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const lines = [
+      `Topic ${q.topic} · Q${q.question_number} · ${typeLabel(q.type)}`,
+    ];
+    if (q.case_study) lines.push(`Case Study: ${q.case_study}`);
+    lines.push("");
+    lines.push(stem);
+    if (q.options && q.options.length) {
+      lines.push("");
+      q.options.forEach(opt => {
+        lines.push(`${opt.letter}. ${opt.text}`);
+      });
+    }
+    return lines.join("\n");
+  }
+
+  function copyCurrentQuestion() {
+    if (cursor >= order.length) return;
+    const q = questions[order[cursor]];
+    if (q.type !== "multiple-choice" && q.type !== "multi-select") return;
+    const text = questionPlainText(q);
+    const original = copyBtn.textContent;
+    const showCopied = (ok) => {
+      copyBtn.textContent = ok ? "Copied!" : "Copy failed";
+      setTimeout(() => { copyBtn.textContent = original; }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => showCopied(true), () => fallbackCopy(text, showCopied));
+    } else {
+      fallbackCopy(text, showCopied);
+    }
+  }
+
+  function fallbackCopy(text, cb) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      cb(ok);
+    } catch (_) {
+      cb(false);
+    }
   }
 
   function renderSummary() {
@@ -568,6 +646,9 @@
   /* ---------- Wiring ---------- */
   revealBtn.addEventListener("click", submit);
   nextBtn.addEventListener("click", next);
+  backBtn.addEventListener("click", back);
+  clearBtn.addEventListener("click", clearPicks);
+  copyBtn.addEventListener("click", copyCurrentQuestion);
   restartBtn.addEventListener("click", () => { clearSession(); startNewSession(); });
 
   document.addEventListener("keydown", e => {
@@ -584,6 +665,9 @@
     } else if (e.code === "ArrowRight" && !nextBtn.hidden) {
       e.preventDefault();
       next();
+    } else if (e.code === "ArrowLeft" && !backBtn.hidden) {
+      e.preventDefault();
+      back();
     } else if ((e.key === "c" || e.key === "C") && csModal.hidden) {
       const q = questions[order[cursor]];
       if (q && q.case_study && CASE_STUDY_PATHS[q.case_study]) {

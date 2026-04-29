@@ -81,6 +81,7 @@ html, body {
   padding: 0;
   height: 100%;
   font-family: var(--sans);
+  font-size: 17px;
   color: var(--ink);
   background: var(--bg-grad);
 }
@@ -107,14 +108,14 @@ html, body {
   background: linear-gradient(135deg, #60a5fa, #2563eb);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
 }
-.brand-text { font-weight: 600; font-size: 15px; letter-spacing: 0.2px; }
+.brand-text { font-weight: 600; font-size: 17px; letter-spacing: 0.2px; }
 
 .top-actions { display: flex; gap: 10px; align-items: center; }
 .ghost-btn {
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  padding: 7px 12px;
+  padding: 8px 13px;
   border-radius: 8px;
   border: 1px solid var(--border-strong);
   background: transparent;
@@ -144,7 +145,7 @@ html, body {
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-on-bar);
   font-variant-numeric: tabular-nums;
 }
@@ -153,7 +154,7 @@ html, body {
 .progress-counts .progress-detail {
   margin-left: 10px;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: 13px;
 }
 .dot {
   display: inline-block;
@@ -221,7 +222,7 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -252,7 +253,7 @@ html, body {
 .cs-button {
   margin-left: auto;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -266,13 +267,13 @@ html, body {
 .cs-button:hover { background: var(--warn-soft); }
 
 .question-text {
-  font-size: 17px;
+  font-size: 18.5px;
   line-height: 1.55;
   color: var(--ink);
 }
 .question-text p { margin: 8px 0; }
 .question-text p:first-child {
-  font-size: 21px;
+  font-size: 23px;
   line-height: 1.4;
   font-weight: 500;
   margin-top: 0;
@@ -294,15 +295,15 @@ html, body {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 18px;
+  padding: 15px 18px;
   border: 1.5px solid var(--border);
   border-radius: 10px;
   background: var(--bg-card);
   cursor: pointer;
   text-align: left;
   font: inherit;
-  font-size: 15.5px;
-  line-height: 1.4;
+  font-size: 17px;
+  line-height: 1.45;
   color: var(--ink);
   transition: border-color 120ms ease, background 120ms ease, transform 60ms ease;
   width: 100%;
@@ -316,15 +317,15 @@ html, body {
 
 .option-letter {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   background: var(--tag-bg);
   color: var(--ink-soft);
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
 }
 .option-text { flex: 1; }
 
@@ -385,15 +386,15 @@ html, body {
   gap: 10px;
 }
 .slot-label {
-  font-size: 14.5px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink);
   line-height: 1.4;
 }
 .slot-select {
   font: inherit;
-  font-size: 15px;
-  padding: 10px 12px;
+  font-size: 16px;
+  padding: 11px 12px;
   border-radius: 8px;
   border: 1.5px solid var(--border);
   background: var(--bg-card);
@@ -422,7 +423,7 @@ html, body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.4;
 }
 .slot-pick {
@@ -440,7 +441,7 @@ html, body {
 .slot-wrong .slot-icon   { color: var(--bad); }
 .slot-correct-text {
   flex-basis: 100%;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink-soft);
 }
 .slot-correct-text strong { color: var(--ink); font-weight: 700; }
@@ -464,7 +465,7 @@ html, body {
   padding-left: 20px;
   display: grid;
   gap: 2px;
-  font-size: 14.5px;
+  font-size: 16px;
   color: var(--ink);
 }
 
@@ -472,7 +473,7 @@ html, body {
   padding: 14px 18px;
   border-radius: 10px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -482,7 +483,7 @@ html, body {
 .verdict-revealed { background: var(--tag-bg);    color: var(--ink-soft);  border-left: 4px solid var(--ink-faint); }
 
 .explanation {
-  font-size: 15px;
+  font-size: 16.5px;
   line-height: 1.6;
   color: var(--ink);
   border-top: 1px solid var(--border);
@@ -490,7 +491,7 @@ html, body {
 }
 .explanation h1 { display: none; }
 .explanation h2 {
-  font-size: 16px;
+  font-size: 17.5px;
   margin: 22px 0 8px;
   color: var(--ink);
   font-weight: 700;
@@ -549,8 +550,8 @@ html, body {
 .btn {
   font: inherit;
   font-weight: 600;
-  font-size: 14.5px;
-  padding: 11px 22px;
+  font-size: 15.5px;
+  padding: 12px 22px;
   border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -584,7 +585,7 @@ html, body {
   width: 100%;
   text-align: center;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-faint);
 }
 .kbd-hint kbd {
@@ -593,7 +594,7 @@ html, body {
   border: 1px solid var(--kbd-border);
   border-radius: 4px;
   padding: 1px 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--kbd-fg);
 }
 

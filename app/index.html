@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Practice Questions</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div id="app">
@@ -48,11 +48,14 @@
   </main>
 
   <footer class="footer">
+    <button id="back-btn" class="btn btn-tertiary" hidden>&larr; Back</button>
+    <button id="clear-btn" class="btn btn-tertiary" hidden>Clear</button>
+    <button id="copy-btn" class="btn btn-tertiary" hidden>Copy Question</button>
     <button id="reveal-btn" class="btn btn-primary" hidden>Reveal Answer</button>
     <button id="next-btn" class="btn btn-secondary" hidden>Next Question</button>
     <button id="restart-btn" class="btn btn-tertiary" hidden>Start New Session</button>
     <div class="footer-meta">
-      <span class="kbd-hint">Press <kbd>Space</kbd> to reveal, <kbd>&rarr;</kbd> for next, <kbd>C</kbd> for case study</span>
+      <span class="kbd-hint">Press <kbd>Space</kbd> to reveal, <kbd>&rarr;</kbd> for next, <kbd>&larr;</kbd> for back, <kbd>C</kbd> for case study</span>
     </div>
   </footer>
 </div>
@@ -69,6 +72,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
