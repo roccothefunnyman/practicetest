@@ -27,6 +27,15 @@
   const csFrame = document.getElementById("cs-frame");
   const csTitle = document.getElementById("cs-title");
 
+  const pickerEl = document.getElementById("picker");
+  const pickerBodyEl = document.getElementById("picker-body");
+  const pickerCountEl = document.getElementById("picker-count");
+  const pickerBankTotalEl = document.getElementById("picker-bank-total");
+  const pickerPresetsEl = document.getElementById("picker-presets");
+  const pickerStartBtn = document.getElementById("picker-start");
+  const pickerCancelBtn = document.getElementById("picker-cancel");
+  const stageEl = document.querySelector(".stage");
+
   const DOMAIN_FALLBACK = {
     plan:   { label: "Plan" },
     design: { label: "Design" },
@@ -45,6 +54,8 @@
   let revealed = false;
   let picks = null;
   let stats = loadStats();
+  let pickerSelected = new Set();
+  let pickerSession = false;
 
   /* ---------- Theme ---------- */
   function applyTheme(theme) {
@@ -118,12 +129,18 @@
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ order, cursor }));
   }
   function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
-  function startNewSession() {
-    order = shuffle(questions.map((_, i) => i));
+
+  function startSessionWithIds(ids) {
+    const idToIndex = new Map();
+    questions.forEach((q, i) => idToIndex.set(q.id, i));
+    const indices = ids.map(id => idToIndex.get(id)).filter(i => i !== undefined);
+    if (indices.length === 0) return;
+    order = shuffle(indices);
     cursor = 0;
     revealed = false;
     picks = null;
     saveSession();
+    closePicker();
     render();
   }
 
@@ -175,14 +192,180 @@
     }
   }
 
+  /* ---------- Picker ---------- */
+  function openPicker(prefillIds) {
+    pickerSession = true;
+    pickerSelected = new Set();
+    if (prefillIds && prefillIds.length) {
+      prefillIds.forEach(id => pickerSelected.add(id));
+    } else {
+      questions.forEach(q => pickerSelected.add(q.id));
+    }
+    if (stageEl) stageEl.style.justifyContent = "center";
+    slideEl.hidden = true;
+    pickerEl.hidden = false;
+    pickerBankTotalEl.textContent = String(questions.length);
+    revealBtn.hidden = true;
+    nextBtn.hidden = true;
+    backBtn.hidden = true;
+    clearBtn.hidden = true;
+    copyBtn.hidden = true;
+    restartBtn.hidden = true;
+    renderPicker();
+  }
+
+  function closePicker() {
+    pickerSession = false;
+    pickerEl.hidden = true;
+    slideEl.hidden = false;
+  }
+
+  function renderPicker() {
+    const groups = { plan: [], design: [], deploy: [], other: [] };
+    questions.forEach(q => {
+      const cat = (q.category && groups[q.category]) ? q.category : "other";
+      groups[cat].push(q);
+    });
+
+    const order = ["plan", "design", "deploy"];
+    const html = order.map(code => {
+      const list = groups[code];
+      if (!list || list.length === 0) return "";
+      const label = (domains[code] && domains[code].label) || (DOMAIN_FALLBACK[code] && DOMAIN_FALLBACK[code].label) || code;
+      const selectedCount = list.filter(q => pickerSelected.has(q.id)).length;
+      const rows = list.map(q => {
+        const checked = pickerSelected.has(q.id);
+        const m = stats[q.id];
+        const mClass = m === "correct" ? "correct" : (m === "wrong" ? "wrong" : "unseen");
+        const stem = (q.question_text || "").replace(/\s+/g, " ").trim();
+        const preview = stem.length > 110 ? stem.slice(0, 107) + "..." : stem;
+        const tags = [`<span class="picker-tag">${escapeHtml(typeShort(q.type))}</span>`];
+        if (q.case_study) tags.push(`<span class="picker-tag case">${escapeHtml(q.case_study)}</span>`);
+        return `<label class="picker-row${checked ? " is-checked" : ""}" data-id="${escapeHtml(q.id)}">
+          <input type="checkbox" ${checked ? "checked" : ""} data-id="${escapeHtml(q.id)}">
+          <span class="picker-row-id">T${q.topic} Q${String(q.question_number).padStart(2,"0")}</span>
+          <span class="picker-row-meta"><span class="picker-mastery ${mClass}"></span>${tags.join("")}</span>
+          <span class="picker-row-stem">${escapeHtml(preview)}</span>
+        </label>`;
+      }).join("");
+      return `<div class="picker-domain" data-cat="${code}">
+        <div class="picker-domain-head">
+          <div class="picker-domain-name cat-${code}">${escapeHtml(label)}</div>
+          <div class="picker-domain-actions">
+            <span class="picker-domain-count" data-count="${code}">${selectedCount} / ${list.length}</span>
+            <button class="picker-link" type="button" data-group-action="all" data-cat="${code}">All</button>
+            <button class="picker-link" type="button" data-group-action="none" data-cat="${code}">None</button>
+          </div>
+        </div>
+        <div class="picker-rows">${rows}</div>
+      </div>`;
+    }).join("");
+
+    pickerBodyEl.innerHTML = html;
+    updatePickerCount();
+  }
+
+  function typeShort(t) {
+    return ({
+      "multiple-choice": "MC",
+      "multi-select": "MS",
+      "hotspot": "Hotspot",
+      "drag-drop": "Drag",
+    })[t] || t;
+  }
+
+  function updatePickerCount() {
+    pickerCountEl.textContent = String(pickerSelected.size);
+    pickerStartBtn.disabled = pickerSelected.size === 0;
+    pickerBodyEl.querySelectorAll(".picker-domain").forEach(div => {
+      const cat = div.dataset.cat;
+      const total = div.querySelectorAll(".picker-row").length;
+      const selected = div.querySelectorAll(".picker-row input:checked").length;
+      const label = div.querySelector(`[data-count="${cat}"]`);
+      if (label) label.textContent = `${selected} / ${total}`;
+    });
+  }
+
+  function applyPreset(preset) {
+    pickerSelected = new Set();
+    questions.forEach(q => {
+      let include = false;
+      switch (preset) {
+        case "all": include = true; break;
+        case "none": include = false; break;
+        case "wrong": include = stats[q.id] === "wrong"; break;
+        case "unanswered": include = !stats[q.id]; break;
+        case "correct": include = stats[q.id] === "correct"; break;
+        case "plan": include = q.category === "plan"; break;
+        case "design": include = q.category === "design"; break;
+        case "deploy": include = q.category === "deploy"; break;
+        case "case-fabrikam": include = q.case_study === "Fabrikam"; break;
+        case "case-contoso": include = q.case_study === "Contoso"; break;
+        case "case-none": include = !q.case_study; break;
+      }
+      if (include) pickerSelected.add(q.id);
+    });
+    renderPicker();
+  }
+
+  function applyGroupAction(cat, action) {
+    questions.forEach(q => {
+      if (q.category !== cat) return;
+      if (action === "all") pickerSelected.add(q.id);
+      else if (action === "none") pickerSelected.delete(q.id);
+    });
+    renderPicker();
+  }
+
+  pickerPresetsEl.addEventListener("click", e => {
+    const btn = e.target.closest("[data-preset]");
+    if (!btn) return;
+    applyPreset(btn.dataset.preset);
+  });
+
+  pickerBodyEl.addEventListener("change", e => {
+    const cb = e.target.closest('input[type="checkbox"]');
+    if (!cb) return;
+    const id = cb.dataset.id;
+    if (cb.checked) pickerSelected.add(id);
+    else pickerSelected.delete(id);
+    const row = cb.closest(".picker-row");
+    if (row) row.classList.toggle("is-checked", cb.checked);
+    updatePickerCount();
+  });
+
+  pickerBodyEl.addEventListener("click", e => {
+    const link = e.target.closest("[data-group-action]");
+    if (!link) return;
+    e.preventDefault();
+    applyGroupAction(link.dataset.cat, link.dataset.groupAction);
+  });
+
+  pickerStartBtn.addEventListener("click", () => {
+    if (pickerSelected.size === 0) return;
+    startSessionWithIds(Array.from(pickerSelected));
+  });
+
+  pickerCancelBtn.addEventListener("click", () => {
+    if (order.length === 0) {
+      // first launch and no session yet, fall back to all questions
+      startSessionWithIds(questions.map(q => q.id));
+    } else {
+      closePicker();
+      render();
+    }
+  });
+
   /* ---------- Progress bars ---------- */
   function renderProgress() {
-    const total = questions.length;
+    const total = order.length;
     let correct = 0, wrong = 0;
     const byCat = { plan: { total: 0, correct: 0, wrong: 0 },
                     design: { total: 0, correct: 0, wrong: 0 },
                     deploy: { total: 0, correct: 0, wrong: 0 } };
-    questions.forEach(q => {
+    order.forEach(idx => {
+      const q = questions[idx];
+      if (!q) return;
       const cat = q.category;
       if (cat && byCat[cat]) byCat[cat].total += 1;
       const s = stats[q.id];
@@ -649,7 +832,11 @@
   backBtn.addEventListener("click", back);
   clearBtn.addEventListener("click", clearPicks);
   copyBtn.addEventListener("click", copyCurrentQuestion);
-  restartBtn.addEventListener("click", () => { clearSession(); startNewSession(); });
+  restartBtn.addEventListener("click", () => {
+    const prefill = order.map(i => questions[i] && questions[i].id).filter(Boolean);
+    clearSession();
+    openPicker(prefill);
+  });
 
   document.addEventListener("keydown", e => {
     const tag = e.target.tagName;
@@ -692,17 +879,20 @@
         return;
       }
       const saved = loadSession();
-      if (saved && saved.order.length === questions.length) {
+      if (saved && Array.isArray(saved.order) && saved.order.length > 0
+          && saved.order.every(i => i >= 0 && i < questions.length)) {
         order = saved.order;
         cursor = saved.cursor || 0;
+        revealed = false;
+        picks = null;
+        render();
       } else {
-        order = shuffle(questions.map((_, i) => i));
+        order = [];
         cursor = 0;
-        saveSession();
+        revealed = false;
+        picks = null;
+        openPicker();
       }
-      revealed = false;
-      picks = null;
-      render();
     })
     .catch(err => {
       slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>py -m http.server</code>) &mdash; opening index.html directly will block fetch().</div>`;
