@@ -4,6 +4,7 @@
   const SESSION_KEY = "practice_session_v1";
   const STATS_KEY = "quiz_stats_v1";
   const THEME_KEY = "quiz_theme";
+  const VOICE_KEY = "quiz_voice_v1";
 
   const slideEl = document.getElementById("slide");
   const revealBtn = document.getElementById("reveal-btn");
@@ -26,6 +27,19 @@
   const csModal = document.getElementById("cs-modal");
   const csFrame = document.getElementById("cs-frame");
   const csTitle = document.getElementById("cs-title");
+
+  const voiceSettingsBtn = document.getElementById("voice-settings-btn");
+  const voiceOnlyBadge = document.getElementById("voice-only-badge");
+  const voiceModalEl = document.getElementById("voice-modal");
+  const voiceSelectEl = document.getElementById("voice-select");
+  const voiceRateEl = document.getElementById("voice-rate");
+  const voiceRateValEl = document.getElementById("voice-rate-val");
+  const voiceOnlyToggleEl = document.getElementById("voice-only-toggle");
+  const voiceTestBtn = document.getElementById("voice-test-btn");
+  const voiceSupportNote = document.getElementById("voice-support-note");
+  const listeningOverlay = document.getElementById("listening-overlay");
+  const listeningTranscriptEl = document.getElementById("listening-transcript");
+  const listeningCancelBtn = document.getElementById("listening-cancel");
 
   const pickerModalEl = document.getElementById("picker-modal");
   const pickerBodyEl = document.getElementById("picker-body");
@@ -54,6 +68,10 @@
   let picks = null;
   let stats = loadStats();
   let pickerSelected = new Set();
+  let voicePrefs = loadVoicePrefs();
+  let activeListen = null;
+  let isReading = false;
+  let pendingAutoAdvance = null;
 
   /* ---------- Theme ---------- */
   function applyTheme(theme) {
@@ -78,6 +96,249 @@
     try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
     applyTheme(next);
   });
+
+  /* ---------- Voice ---------- */
+  function loadVoicePrefs() {
+    try {
+      const raw = localStorage.getItem(VOICE_KEY);
+      if (!raw) return { voiceURI: null, rate: 1.0, voiceOnly: false };
+      const parsed = JSON.parse(raw);
+      return {
+        voiceURI: parsed.voiceURI || null,
+        rate: typeof parsed.rate === "number" ? parsed.rate : 1.0,
+        voiceOnly: !!parsed.voiceOnly,
+      };
+    } catch (_) { return { voiceURI: null, rate: 1.0, voiceOnly: false }; }
+  }
+  function saveVoicePrefs() {
+    try { localStorage.setItem(VOICE_KEY, JSON.stringify(voicePrefs)); } catch (_) {}
+  }
+  function reflectVoiceOnlyBadge() {
+    voiceOnlyBadge.hidden = !voicePrefs.voiceOnly;
+  }
+  function questionPlainTextForRead(q) {
+    const stem = (q.question_text || "").replace(/\s+/g, " ").trim();
+    const lines = [stem];
+    if (q.options && q.options.length) {
+      lines.push("");
+      q.options.forEach(opt => {
+        lines.push(opt.letter + ". " + opt.text);
+      });
+    } else if (q.slots && q.slots.length) {
+      lines.push("Hotspot question with " + q.slots.length + " selections to make.");
+    } else if (q.targets && q.targets.length) {
+      lines.push("Drag and drop with " + q.targets.length + " targets.");
+    }
+    return lines.join(". ");
+  }
+  function readCurrentQuestion() {
+    if (!window.Voice || !Voice.hasTTS) return Promise.resolve();
+    if (cursor >= order.length) return Promise.resolve();
+    const q = questions[order[cursor]];
+    const text = questionPlainTextForRead(q);
+    isReading = true;
+    setReadButtonState(true);
+    return Voice.speak(text, { rate: voicePrefs.rate, voiceURI: voicePrefs.voiceURI })
+      .catch(() => {})
+      .finally(() => { isReading = false; setReadButtonState(false); });
+  }
+  function setReadButtonState(active) {
+    const btn = slideEl.querySelector("[data-voice-read]");
+    if (btn) btn.classList.toggle("is-active", !!active);
+  }
+  function toggleRead() {
+    if (!window.Voice || !Voice.hasTTS) return;
+    if (Voice.isSpeaking() || isReading) {
+      Voice.cancel();
+      isReading = false;
+      setReadButtonState(false);
+      return;
+    }
+    readCurrentQuestion();
+  }
+  function canVoiceAnswer(q) {
+    return q && (q.type === "multiple-choice" || q.type === "multi-select");
+  }
+  function startListening() {
+    if (!window.Voice || !Voice.hasASR) return;
+    if (cursor >= order.length || revealed) return;
+    const q = questions[order[cursor]];
+    if (!canVoiceAnswer(q)) return;
+    if (activeListen) { activeListen.stop(); return; }
+    if (Voice.isSpeaking()) Voice.cancel();
+    listeningOverlay.hidden = false;
+    listeningTranscriptEl.textContent = "";
+    setMicListeningClass(true);
+    activeListen = Voice.listen({
+      lang: "en-US",
+      interim: true,
+      onInterim: ({ transcript }) => { listeningTranscriptEl.textContent = transcript; },
+      onResult: ({ transcript }) => {
+        listeningTranscriptEl.textContent = transcript;
+        handleSpokenAnswer(transcript, q);
+      },
+      onError: (e) => {
+        const code = (e && e.error) || "error";
+        if (code === "not-allowed" || code === "service-not-allowed") {
+          alert("Microphone access was blocked. Enable mic in your browser settings to use voice answers.");
+          if (voicePrefs.voiceOnly) {
+            voicePrefs.voiceOnly = false;
+            saveVoicePrefs();
+            reflectVoiceOnlyBadge();
+            voiceOnlyToggleEl.checked = false;
+          }
+        }
+      },
+      onEnd: () => {
+        activeListen = null;
+        listeningOverlay.hidden = true;
+        setMicListeningClass(false);
+      },
+    });
+    if (!activeListen) {
+      listeningOverlay.hidden = true;
+      setMicListeningClass(false);
+    }
+  }
+  function stopListening() {
+    if (activeListen) { activeListen.stop(); }
+    activeListen = null;
+    listeningOverlay.hidden = true;
+    setMicListeningClass(false);
+  }
+  function setMicListeningClass(on) {
+    const btn = slideEl.querySelector("[data-voice-mic]");
+    if (btn) btn.classList.toggle("is-listening", !!on);
+  }
+  function handleSpokenAnswer(transcript, q) {
+    if (!window.parseSpokenAnswer) return;
+    const parsed = parseSpokenAnswer(transcript, q);
+    if (parsed.skip) {
+      stopListening();
+      return;
+    }
+    if (parsed.letters.length === 0) {
+      // No match. In voice-only, give a short audio nudge and re-listen.
+      if (voicePrefs.voiceOnly) {
+        Voice.speak("Sorry, I didn't catch that. Please say a letter.", { rate: voicePrefs.rate, voiceURI: voicePrefs.voiceURI })
+          .then(() => { if (voicePrefs.voiceOnly) startListening(); }).catch(() => {});
+      }
+      return;
+    }
+    if (q.type === "multiple-choice") {
+      picks.letter = parsed.letters[0];
+      finalizeReveal(q);
+    } else if (q.type === "multi-select") {
+      picks.set = new Set(parsed.letters);
+      finalizeReveal(q);
+    }
+  }
+  function maybeAutoAdvance() {
+    if (!voicePrefs.voiceOnly) return;
+    clearTimeout(pendingAutoAdvance);
+    pendingAutoAdvance = setTimeout(() => {
+      if (revealed && cursor < order.length) next();
+    }, 1500);
+  }
+  function maybeVoiceOnlyOnRender(q) {
+    if (!voicePrefs.voiceOnly) return;
+    if (revealed) { maybeAutoAdvance(); return; }
+    if (!canVoiceAnswer(q)) return;
+    if (!window.Voice || !Voice.hasTTS) return;
+    readCurrentQuestion().then(() => {
+      if (!voicePrefs.voiceOnly) return;
+      if (revealed) return;
+      if (Voice.hasASR) startListening();
+    }).catch(() => {});
+  }
+  function populateVoiceSelect(voices) {
+    voiceSelectEl.innerHTML = "";
+    if (!voices || !voices.length) {
+      const o = document.createElement("option");
+      o.textContent = "(default)";
+      o.value = "";
+      voiceSelectEl.appendChild(o);
+      return;
+    }
+    const def = document.createElement("option");
+    def.value = "";
+    def.textContent = "Default (system)";
+    voiceSelectEl.appendChild(def);
+    voices
+      .slice()
+      .sort((a, b) => (a.lang || "").localeCompare(b.lang || "") || a.name.localeCompare(b.name))
+      .forEach(v => {
+        const o = document.createElement("option");
+        o.value = v.voiceURI;
+        o.textContent = v.name + " (" + v.lang + ")";
+        voiceSelectEl.appendChild(o);
+      });
+    voiceSelectEl.value = voicePrefs.voiceURI || "";
+  }
+  function openVoiceSettings() {
+    voiceModalEl.hidden = false;
+    document.body.style.overflow = "hidden";
+    voiceRateEl.value = String(voicePrefs.rate);
+    voiceRateValEl.innerHTML = voicePrefs.rate.toFixed(2) + "&times;";
+    voiceOnlyToggleEl.checked = !!voicePrefs.voiceOnly;
+    if (window.Voice) {
+      const supportMsgs = [];
+      if (!Voice.hasTTS) supportMsgs.push("Read-aloud is not supported in this browser.");
+      if (!Voice.hasASR) supportMsgs.push("Spoken answers are not supported in this browser.");
+      if (supportMsgs.length) {
+        voiceSupportNote.textContent = supportMsgs.join(" ");
+        voiceSupportNote.hidden = false;
+      } else {
+        voiceSupportNote.hidden = true;
+      }
+      Voice.onVoicesChanged(populateVoiceSelect);
+    } else {
+      voiceSupportNote.textContent = "Voice features are not supported in this browser.";
+      voiceSupportNote.hidden = false;
+    }
+  }
+  function closeVoiceSettings() {
+    voiceModalEl.hidden = true;
+    document.body.style.overflow = "";
+  }
+  voiceSettingsBtn.addEventListener("click", openVoiceSettings);
+  voiceModalEl.addEventListener("click", (e) => {
+    if (e.target.dataset && "voiceClose" in e.target.dataset) closeVoiceSettings();
+  });
+  voiceSelectEl.addEventListener("change", () => {
+    voicePrefs.voiceURI = voiceSelectEl.value || null;
+    saveVoicePrefs();
+  });
+  voiceRateEl.addEventListener("input", () => {
+    voicePrefs.rate = parseFloat(voiceRateEl.value) || 1.0;
+    voiceRateValEl.innerHTML = voicePrefs.rate.toFixed(2) + "&times;";
+    saveVoicePrefs();
+  });
+  voiceOnlyToggleEl.addEventListener("change", () => {
+    voicePrefs.voiceOnly = voiceOnlyToggleEl.checked;
+    saveVoicePrefs();
+    reflectVoiceOnlyBadge();
+    if (voicePrefs.voiceOnly && cursor < order.length) {
+      const q = questions[order[cursor]];
+      if (q) maybeVoiceOnlyOnRender(q);
+    }
+  });
+  voiceTestBtn.addEventListener("click", () => {
+    if (!window.Voice || !Voice.hasTTS) return;
+    Voice.speak("This is a sample of the read-aloud voice at your selected rate.", {
+      rate: voicePrefs.rate, voiceURI: voicePrefs.voiceURI,
+    }).catch(() => {});
+  });
+  voiceOnlyBadge.addEventListener("click", () => {
+    voicePrefs.voiceOnly = false;
+    saveVoicePrefs();
+    reflectVoiceOnlyBadge();
+    voiceOnlyToggleEl.checked = false;
+    Voice && Voice.cancel && Voice.cancel();
+    stopListening();
+  });
+  listeningCancelBtn.addEventListener("click", stopListening);
+  reflectVoiceOnlyBadge();
 
   /* ---------- Stats ---------- */
   function loadStats() {
@@ -414,7 +675,19 @@
       tags.push(`<span class="tag tag-case">Case Study: ${escapeHtml(q.case_study)}</span>`);
       tags.push(`<button class="cs-button" data-cs="${escapeHtml(q.case_study)}" type="button">View case study</button>`);
     }
-    return `<div class="slide-meta">${tags.join("")}</div>
+    const ttsAvailable = !!(window.Voice && Voice.hasTTS);
+    const asrAvailable = !!(window.Voice && Voice.hasASR);
+    let voiceCtl = "";
+    if (ttsAvailable || asrAvailable) {
+      const readBtn = ttsAvailable
+        ? `<button class="voice-icon-btn" data-voice-read type="button" title="Read question aloud" aria-label="Read question aloud">&#x1F50A;</button>`
+        : "";
+      const micBtn = (asrAvailable && canVoiceAnswer(q))
+        ? `<button class="voice-icon-btn" data-voice-mic type="button" title="Speak your answer (V)" aria-label="Speak your answer">&#x1F3A4;</button>`
+        : "";
+      voiceCtl = `<span class="slide-voice-controls">${readBtn}${micBtn}</span>`;
+    }
+    return `<div class="slide-meta">${tags.join("")}${voiceCtl}</div>
             <div class="question-text">${renderMarkdown(q.question_text || "")}</div>`;
   }
 
@@ -611,11 +884,19 @@
     attachHandlers(q);
     updateFooter(q);
     renderProgress();
+    maybeVoiceOnlyOnRender(q);
   }
 
   function attachHandlers(q) {
     slideEl.querySelectorAll(".cs-button").forEach(btn => {
       btn.addEventListener("click", () => openCaseStudy(btn.dataset.cs));
+    });
+    const readBtn = slideEl.querySelector("[data-voice-read]");
+    if (readBtn) readBtn.addEventListener("click", toggleRead);
+    const micBtn = slideEl.querySelector("[data-voice-mic]");
+    if (micBtn) micBtn.addEventListener("click", () => {
+      if (activeListen) stopListening();
+      else startListening();
     });
     if (revealed) return;
     if (q.type === "multiple-choice") {
@@ -652,7 +933,10 @@
       recordResult(q.id, v);
     }
     saveSession();
+    stopListening();
+    if (window.Voice && Voice.cancel) Voice.cancel();
     render();
+    if (voicePrefs.voiceOnly) maybeAutoAdvance();
   }
 
   function updateFooter(q) {
@@ -687,6 +971,9 @@
 
   function next() {
     if (!revealed) return;
+    clearTimeout(pendingAutoAdvance);
+    if (window.Voice && Voice.cancel) Voice.cancel();
+    stopListening();
     cursor += 1;
     revealed = false;
     picks = null;
@@ -696,6 +983,9 @@
 
   function back() {
     if (cursor <= 0) return;
+    clearTimeout(pendingAutoAdvance);
+    if (window.Voice && Voice.cancel) Voice.cancel();
+    stopListening();
     cursor -= 1;
     revealed = false;
     picks = null;
@@ -841,6 +1131,16 @@
       closePicker();
       return;
     }
+    if (e.key === "Escape" && !voiceModalEl.hidden) {
+      e.preventDefault();
+      closeVoiceSettings();
+      return;
+    }
+    if (e.key === "Escape" && activeListen) {
+      e.preventDefault();
+      stopListening();
+      return;
+    }
     if (e.code === "Space" && !revealBtn.hidden) {
       e.preventDefault();
       submit();
@@ -855,6 +1155,13 @@
       if (q && q.case_study && CASE_STUDY_PATHS[q.case_study]) {
         e.preventDefault();
         openCaseStudy(q.case_study);
+      }
+    } else if ((e.key === "v" || e.key === "V") && pickerModalEl.hidden && voiceModalEl.hidden && csModal.hidden) {
+      const q = (cursor < order.length) ? questions[order[cursor]] : null;
+      if (q && !revealed && canVoiceAnswer(q) && window.Voice && Voice.hasASR) {
+        e.preventDefault();
+        if (activeListen) stopListening();
+        else startListening();
       }
     }
   });
