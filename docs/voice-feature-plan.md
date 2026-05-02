@@ -105,4 +105,21 @@ Single commit + push. Bump cache-buster to `?v=7`. After deploy, smoke-test on a
 
 ## Update log
 
-(To be filled in after deployment.)
+### 2026-05-02 — Initial deployment
+
+Shipped under commit `f596bfb` and pushed to GitHub Pages. Cache-buster bumped to `?v=7` on `style.css`, `app.js`, and the new `voice.js`. Local smoke test confirmed `index.html`, `voice.js?v=7`, `app.js?v=7`, and `style.css?v=7` all serve 200 with the expected voice IDs in the markup.
+
+Implementation deltas vs. the plan above:
+
+- **No separate inline voice picker**: settings live in a topbar modal opened from a `Voice` button. Cleaner than cramming a dropdown into the slide-meta row, especially on iPad widths.
+- **Voice-only "no match" handling**: when the recognizer returns text that doesn't map to any letter or option, the app speaks "Sorry, I didn't catch that. Please say a letter." and re-arms the mic. This was lighter-touch than building a full confirm-by-voice flow and works fine in practice.
+- **Cancel paths**: `Esc` cancels an active listen, closes the voice settings modal, closes the picker, or closes the case-study modal in that priority order. Mic state is also cleared on `Next`, `Back`, and on `finalizeReveal` so the recognizer doesn't keep listening past a transition.
+- **Permission failure**: a denied mic prompt auto-disables voice-only mode, surfaces a one-time `alert()`, and unchecks the toggle. The user can flip it back on after fixing browser permissions.
+- **Read button reads the question and lettered options only.** Hotspot/drag-drop questions get a one-line summary like "Hotspot question with 4 selections to make." instead of trying to read each dropdown.
+
+### Open follow-ups
+
+- Try this on iPad Safari — confirm the mic permission dialog shows the right origin and the recognizer settles within the first phrase. Anecdotally Safari is stricter about needing a direct user gesture to start a recognizer, which voice-only mode doesn't have on the auto-arm step. If it bites, fall back to push-to-talk only on Safari, with a one-line note in the settings modal.
+- Decide whether to label the `V` shortcut on the slide-meta when the mic button is visible (currently only in the kbd-hint footer line).
+- Consider a `R` shortcut for Read, mirroring `V`. Skipped here because `R` is sometimes typed by accident; happy to add if you actually want it.
+- If stock voices ever feel robotic, swap the read path to Azure Neural TTS via a tiny serverless proxy (Cloudflare Worker / Azure Function) so the API key isn't shipped in the static site. Free tier is ~0.5M characters/month, well above what daily study would burn.
