@@ -216,8 +216,8 @@
       groups[cat].push(q);
     });
 
-    const order = ["plan", "design", "deploy"];
-    const html = order.map(code => {
+    const catOrder = ["plan", "design", "deploy"];
+    const html = catOrder.map(code => {
       const list = groups[code];
       if (!list || list.length === 0) return "";
       const label = (domains[code] && domains[code].label) || (DOMAIN_FALLBACK[code] && DOMAIN_FALLBACK[code].label) || code;
@@ -375,8 +375,8 @@
     overallFillCorrect.style.width = total ? (correct / total * 100) + "%" : "0%";
     overallFillWrong.style.width   = total ? (wrong   / total * 100) + "%" : "0%";
 
-    const order = ["plan", "design", "deploy"];
-    sectionGridEl.innerHTML = order.map(code => {
+    const catOrder = ["plan", "design", "deploy"];
+    sectionGridEl.innerHTML = catOrder.map(code => {
       const c = byCat[code];
       if (c.total === 0) return "";
       const pctC = c.correct / c.total * 100;
