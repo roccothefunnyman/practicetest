@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Practice Questions</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="app">
@@ -15,6 +15,7 @@
     </div>
 
     <div class="top-actions">
+      <button id="new-session-btn" class="ghost-btn ghost-btn-accent" type="button" title="Pick which questions to drill in a new session">New session</button>
       <button id="reset-stats-btn" class="ghost-btn" type="button" title="Clear answered/wrong history for all questions">Reset progress</button>
       <button id="theme-toggle" class="ghost-btn" type="button" title="Toggle light or dark mode">Light mode</button>
     </div>
@@ -45,40 +46,6 @@
     <article id="slide" class="slide" aria-live="polite">
       <div class="slide-loading">Loading questions...</div>
     </article>
-
-    <section id="picker" class="picker" hidden>
-      <div class="picker-header">
-        <div>
-          <h2 class="picker-title">Pick your questions</h2>
-          <div class="picker-sub">Filter the bank, then start a session with just those questions.</div>
-        </div>
-        <div class="picker-count">
-          <strong id="picker-count">0</strong> selected of <span id="picker-bank-total">0</span>
-        </div>
-      </div>
-
-      <div class="picker-presets" id="picker-presets">
-        <span class="picker-presets-label">Quick picks:</span>
-        <button class="chip-btn" data-preset="all" type="button">All</button>
-        <button class="chip-btn" data-preset="none" type="button">None</button>
-        <button class="chip-btn" data-preset="wrong" type="button">Wrong only</button>
-        <button class="chip-btn" data-preset="unanswered" type="button">Unanswered</button>
-        <button class="chip-btn" data-preset="correct" type="button">Correct only</button>
-        <button class="chip-btn" data-preset="plan" type="button">Plan only</button>
-        <button class="chip-btn" data-preset="design" type="button">Design only</button>
-        <button class="chip-btn" data-preset="deploy" type="button">Deploy only</button>
-        <button class="chip-btn" data-preset="case-fabrikam" type="button">Fabrikam case</button>
-        <button class="chip-btn" data-preset="case-contoso" type="button">Contoso case</button>
-        <button class="chip-btn" data-preset="case-none" type="button">No case study</button>
-      </div>
-
-      <div id="picker-body" class="picker-body"></div>
-
-      <div class="picker-footer">
-        <button id="picker-cancel" class="btn btn-tertiary" type="button">Cancel</button>
-        <button id="picker-start" class="btn btn-primary" type="button">Start session</button>
-      </div>
-    </section>
   </main>
 
   <footer class="footer">
@@ -94,6 +61,43 @@
   </footer>
 </div>
 
+<div id="picker-modal" class="picker-modal" hidden>
+  <div class="picker-backdrop" data-picker-close></div>
+  <section id="picker" class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+    <div class="picker-header">
+      <div>
+        <h2 id="picker-title" class="picker-title">New session</h2>
+        <div class="picker-sub">Pick which questions to include, then start.</div>
+      </div>
+      <div class="picker-count">
+        <strong id="picker-count">0</strong> selected of <span id="picker-bank-total">0</span>
+      </div>
+    </div>
+
+    <div class="picker-presets" id="picker-presets">
+      <span class="picker-presets-label">Quick picks:</span>
+      <button class="chip-btn" data-preset="all" type="button">All</button>
+      <button class="chip-btn" data-preset="none" type="button">None</button>
+      <button class="chip-btn" data-preset="wrong" type="button">Wrong only</button>
+      <button class="chip-btn" data-preset="unanswered" type="button">Unanswered</button>
+      <button class="chip-btn" data-preset="correct" type="button">Correct only</button>
+      <button class="chip-btn" data-preset="plan" type="button">Plan only</button>
+      <button class="chip-btn" data-preset="design" type="button">Design only</button>
+      <button class="chip-btn" data-preset="deploy" type="button">Deploy only</button>
+      <button class="chip-btn" data-preset="case-fabrikam" type="button">Fabrikam case</button>
+      <button class="chip-btn" data-preset="case-contoso" type="button">Contoso case</button>
+      <button class="chip-btn" data-preset="case-none" type="button">No case study</button>
+    </div>
+
+    <div id="picker-body" class="picker-body"></div>
+
+    <div class="picker-footer">
+      <button id="picker-cancel" class="btn btn-tertiary" type="button" data-picker-close>Cancel</button>
+      <button id="picker-start" class="btn btn-primary" type="button">Start session</button>
+    </div>
+  </section>
+</div>
+
 <div id="cs-modal" class="cs-modal" hidden>
   <div class="cs-backdrop" data-close></div>
   <div class="cs-dialog" role="dialog" aria-modal="true" aria-labelledby="cs-title">
@@ -106,6 +110,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

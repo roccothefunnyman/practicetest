@@ -123,6 +123,14 @@ html, body {
   cursor: pointer;
 }
 .ghost-btn:hover { background: var(--surface-hover); }
+.ghost-btn-accent {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ghost-btn-accent:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
 
 .progress-block {
   padding: 14px 28px 18px;
@@ -598,19 +606,37 @@ html, body {
   color: var(--kbd-fg);
 }
 
-/* Picker */
+/* Picker (modal) */
+.picker-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.picker-modal[hidden] { display: none; }
+.picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(3px);
+}
 .picker {
-  width: min(1100px, 100%);
+  position: relative;
+  width: min(960px, 100%);
+  max-height: calc(100vh - 48px);
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 28px 32px 24px;
+  padding: 22px 26px 18px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  overflow: hidden;
 }
-.picker[hidden] { display: none; }
 
 .picker-header {
   display: flex;
@@ -673,8 +699,9 @@ html, body {
 
 .picker-body {
   display: grid;
-  gap: 18px;
-  max-height: 60vh;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -799,10 +826,10 @@ html, body {
 }
 
 @media (max-width: 720px) {
-  .picker { padding: 20px 16px 16px; }
+  .picker-modal { padding: 8px; }
+  .picker { padding: 16px 14px 12px; max-height: calc(100vh - 16px); }
   .picker-row { grid-template-columns: 22px 70px auto 1fr; }
   .picker-row-stem { display: none; }
-  .picker-body { max-height: none; }
 }
 
 /* Case study modal */

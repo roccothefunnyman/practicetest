@@ -27,14 +27,13 @@
   const csFrame = document.getElementById("cs-frame");
   const csTitle = document.getElementById("cs-title");
 
-  const pickerEl = document.getElementById("picker");
+  const pickerModalEl = document.getElementById("picker-modal");
   const pickerBodyEl = document.getElementById("picker-body");
   const pickerCountEl = document.getElementById("picker-count");
   const pickerBankTotalEl = document.getElementById("picker-bank-total");
   const pickerPresetsEl = document.getElementById("picker-presets");
   const pickerStartBtn = document.getElementById("picker-start");
-  const pickerCancelBtn = document.getElementById("picker-cancel");
-  const stageEl = document.querySelector(".stage");
+  const newSessionBtn = document.getElementById("new-session-btn");
 
   const DOMAIN_FALLBACK = {
     plan:   { label: "Plan" },
@@ -55,7 +54,6 @@
   let picks = null;
   let stats = loadStats();
   let pickerSelected = new Set();
-  let pickerSession = false;
 
   /* ---------- Theme ---------- */
   function applyTheme(theme) {
@@ -194,30 +192,21 @@
 
   /* ---------- Picker ---------- */
   function openPicker(prefillIds) {
-    pickerSession = true;
     pickerSelected = new Set();
     if (prefillIds && prefillIds.length) {
       prefillIds.forEach(id => pickerSelected.add(id));
     } else {
       questions.forEach(q => pickerSelected.add(q.id));
     }
-    if (stageEl) stageEl.style.justifyContent = "center";
-    slideEl.hidden = true;
-    pickerEl.hidden = false;
     pickerBankTotalEl.textContent = String(questions.length);
-    revealBtn.hidden = true;
-    nextBtn.hidden = true;
-    backBtn.hidden = true;
-    clearBtn.hidden = true;
-    copyBtn.hidden = true;
-    restartBtn.hidden = true;
+    pickerModalEl.hidden = false;
+    document.body.style.overflow = "hidden";
     renderPicker();
   }
 
   function closePicker() {
-    pickerSession = false;
-    pickerEl.hidden = true;
-    slideEl.hidden = false;
+    pickerModalEl.hidden = true;
+    document.body.style.overflow = "";
   }
 
   function renderPicker() {
@@ -346,14 +335,15 @@
     startSessionWithIds(Array.from(pickerSelected));
   });
 
-  pickerCancelBtn.addEventListener("click", () => {
-    if (order.length === 0) {
-      // first launch and no session yet, fall back to all questions
-      startSessionWithIds(questions.map(q => q.id));
-    } else {
+  pickerModalEl.addEventListener("click", (e) => {
+    if (e.target.dataset && "pickerClose" in e.target.dataset) {
       closePicker();
-      render();
     }
+  });
+
+  newSessionBtn.addEventListener("click", () => {
+    const prefill = order.map(i => questions[i] && questions[i].id).filter(Boolean);
+    openPicker(prefill);
   });
 
   /* ---------- Progress bars ---------- */
@@ -846,6 +836,11 @@
       closeCaseStudy();
       return;
     }
+    if (e.key === "Escape" && !pickerModalEl.hidden) {
+      e.preventDefault();
+      closePicker();
+      return;
+    }
     if (e.code === "Space" && !revealBtn.hidden) {
       e.preventDefault();
       submit();
@@ -883,16 +878,14 @@
           && saved.order.every(i => i >= 0 && i < questions.length)) {
         order = saved.order;
         cursor = saved.cursor || 0;
-        revealed = false;
-        picks = null;
-        render();
       } else {
-        order = [];
+        order = shuffle(questions.map((_, i) => i));
         cursor = 0;
-        revealed = false;
-        picks = null;
-        openPicker();
+        saveSession();
       }
+      revealed = false;
+      picks = null;
+      render();
     })
     .catch(err => {
       slideEl.innerHTML = `<div class="slide-loading">Error: ${escapeHtml(err.message)}<br><br>If running locally, serve this folder over HTTP (e.g. <code>py -m http.server</code>) &mdash; opening index.html directly will block fetch().</div>`;
