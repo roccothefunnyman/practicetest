@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic 1 Case Study Solutions: Fabrikam, Inc.</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f1419;
+    --surface: #1a2129;
+    --surface-2: #232c36;
+    --border: #2d3845;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #58a6ff;
+    --warn: #f0883e;
+    --good: #3fb950;
+    --bad: #f85149;
+    --purple: #b392f0;
+    --teal: #56d4dd;
+    --tag: #2a3441;
+    --shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #0969da;
+    --warn: #bc4c00;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --purple: #8250df;
+    --teal: #0c7c8a;
+    --tag: #eef1f4;
+    --shadow: 0 6px 18px rgba(31,35,40,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16.5px/1.55 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    padding: 28px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  h1 { margin: 0 0 4px; font-size: 34px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 17px; }
+  .theme-toggle {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .theme-toggle:hover { background: var(--surface-2); }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .tag {
+    background: var(--tag);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    border: 1px solid var(--border);
+  }
+  .tag.accent { color: var(--accent); border-color: var(--accent); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .tag.good { color: var(--good); border-color: var(--good); }
+  .tag.purple { color: var(--purple); border-color: var(--purple); }
+  .tag.teal { color: var(--teal); border-color: var(--teal); }
+  .grid {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .card h2 .pill {
+    float: right;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface-2);
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 8px; font-size: 15px; }
+  li::marker { color: var(--muted); }
+  .full-row { grid-column: 1 / -1; }
+  .req .req-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bad);
+    margin-bottom: 4px;
+  }
+  .req .sol-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--good);
+    margin-top: 6px;
+    margin-bottom: 4px;
+  }
+  .map {
+    border-left: 4px solid var(--accent);
+  }
+  .req {
+    border-left: 4px solid var(--good);
+  }
+  .map-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .map-table th, .map-table td {
+    text-align: left;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .map-table th {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    background: var(--surface-2);
+  }
+  .map-table tr:last-child td { border-bottom: none; }
+  .map-table .req-col { width: 38%; color: var(--text); }
+  .map-table code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .stack-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 12px;
+  }
+  .chip {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 11px;
+    font-size: 13.5px;
+  }
+  .chip strong { color: var(--accent); }
+  .arch {
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text);
+  }
+  @media (max-width: 760px) {
+    body { padding: 18px; font-size: 16px; }
+    h1 { font-size: 26px; }
+    .arch { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <h1>Fabrikam, Inc. &mdash; Solution Architecture</h1>
+      <div class="subtitle">Topic 1 case study, mapped requirement-by-requirement to Microsoft services. Every choice is grounded in Microsoft Learn.</div>
+    </div>
+    <button id="theme-toggle" class="theme-toggle" type="button">Light mode</button>
+  </div>
+
+  <div class="meta-row">
+    <span class="tag accent">Cloud Adoption Framework</span>
+    <span class="tag good">Dataverse SSOT</span>
+    <span class="tag teal">Dynamics 365 Sales</span>
+    <span class="tag purple">Copilot Studio (low-code agent)</span>
+    <span class="tag warn">Voice / Telephony</span>
+    <span class="tag">Application Insights</span>
+    <span class="tag">Microsoft Purview</span>
+  </div>
+
+  <div class="grid">
+
+    <div class="card map full-row">
+      <h2>Requirement &rarr; service map</h2>
+      <table class="map-table">
+        <thead>
+          <tr>
+            <th class="req-col">Requirement from the case study</th>
+            <th>Microsoft service / pattern</th>
+            <th>Microsoft Learn anchor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="req-col">Migrate the entire on-prem estate to Azure using Microsoft-recommended methodology.</td>
+            <td><strong>Cloud Adoption Framework (CAF)</strong>: Strategy &rarr; Plan &rarr; Ready &rarr; Adopt &rarr; Govern &rarr; Secure &rarr; Manage. Use the CAF Migrate sub-methodology (Plan, Prepare, Execute, Optimize, Decommission) for the on-prem cutover.</td>
+            <td><a href="https://learn.microsoft.com/azure/cloud-adoption-framework/overview" target="_blank">CAF overview</a> &middot; <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/migrate/plan-migration" target="_blank">Plan your migration</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Azure must host all future infrastructure workloads.</td>
+            <td><strong>Azure landing zones</strong> with separate subscriptions for dev / test / prod, governed by Azure Policy and Azure Well-Architected Framework principles.</td>
+            <td><a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/" target="_blank">Azure landing zones</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Cloud user authentication and security framework.</td>
+            <td><strong>Microsoft Entra ID</strong> for identity, conditional access, and SSO. Replaces the on-prem identity stores.</td>
+            <td><a href="https://learn.microsoft.com/entra/fundamentals/whatis" target="_blank">What is Microsoft Entra ID</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Consolidate all sales data into a single source of truth.</td>
+            <td><strong>Microsoft Dataverse</strong> environment as the SSOT, fed by data migration from the legacy systems and surfaced through Dynamics 365 Sales.</td>
+            <td><a href="https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-intro" target="_blank">What is Dataverse</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Replace proprietary CRM, track sales cycles, send follow-up communications faster.</td>
+            <td><strong>Dynamics 365 Sales</strong> with <strong>Copilot in Dynamics 365 Sales</strong> for record summarization, opportunity insights, meeting prep, and email assistance.</td>
+            <td><a href="https://learn.microsoft.com/dynamics365/sales/copilot-overview" target="_blank">Copilot in Dynamics 365 Sales</a> &middot; <a href="https://learn.microsoft.com/dynamics365/release-plan/2024wave2/sales/dynamics365-sales/elevate-sales-pitch-using-copilot-email-assistance" target="_blank">Copilot email assistance</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Sales managers see unanswered prospect correspondence and step in.</td>
+            <td><strong>Copilot in Dynamics 365 Sales &mdash; opportunity insights and customer communication views</strong> highlight risks, upcoming actions, and the chronological email/meeting timeline so a manager can intervene.</td>
+            <td><a href="https://learn.microsoft.com/dynamics365/copilot/ai-get-started#dynamics-365-sales" target="_blank">AI capabilities in D365 Sales</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">A single AI agent, low-code, with Dataverse as its core component.</td>
+            <td><strong>Microsoft Copilot Studio</strong> custom agent. Connect <strong>Dataverse</strong> as both a knowledge source and a tool (Dataverse MCP server or native Dataverse connector) so the agent grounds answers in the SSOT.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/fundamentals-what-is-copilot-studio" target="_blank">Copilot Studio overview</a> &middot; <a href="https://learn.microsoft.com/power-apps/maker/data-platform/data-platform-mcp-copilot-studio" target="_blank">Dataverse MCP in Copilot Studio</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Follow Microsoft conversational UX recommendations.</td>
+            <td>Apply the <strong>Copilot Studio conversational UX guidance</strong>: bite-size topics, generative orchestration with high-quality descriptions, slot-filling, fallback variations, and ethical/empathetic design principles.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/cux-overview" target="_blank">Design conversational UX</a> &middot; <a href="https://learn.microsoft.com/power-platform/well-architected/experience-optimization/conversation-design" target="_blank">Conversation design (WAF)</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Designated checklist for compliant deployment.</td>
+            <td>The <strong>Copilot Studio Plan checklist</strong> validates risks, technical readiness, ALM, security/identity, channel constraints, responsible AI, and continuous improvement before launch.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/plan-checklist" target="_blank">Review the plan checklist</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Hands-free voice interaction for sales executives wearing headsets.</td>
+            <td><strong>Voice agent template</strong> in Copilot Studio with the <strong>Telephony channel</strong>, Speech &amp; DTMF, barge-in, silence detection, and SSML. Optimize for voice in a Standard Power Platform environment.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/voice-build-from-template" target="_blank">Voice agent template</a> &middot; <a href="https://learn.microsoft.com/dynamics365/customer-service/administer/voice-channel-pva-bots" target="_blank">IVR with Copilot Studio</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Unexpected actions must escalate to a live representative (e.g. after two failed attempts).</td>
+            <td>Use the default <strong>Fallback system topic</strong> (asks the user to rephrase up to two times, then redirects) plus the <strong>Escalate</strong> system topic or a <strong>Transfer Conversation</strong> node into Dynamics 365 Customer Service / Contact Center for representative handoff with context.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/authoring-system-fallback-topic" target="_blank">Fallback topic</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/deflection-topic-escalation-analysis" target="_blank">Topic escalation</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/cux-fallbacks" target="_blank">Graceful fallbacks and handoff</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Detailed telemetry on the first agent for troubleshooting and tuning during launch.</td>
+            <td>Connect the agent to <strong>Azure Application Insights</strong> via Settings &rarr; Advanced (connection string). Enable <code>Log activities</code> and, with care, <code>Log sensitive Activity properties</code> to capture <code>userid</code>, <code>name</code>, <code>text</code>, <code>speak</code>. Add Log custom telemetry event nodes in topics. Query with Kusto.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/advanced-bot-framework-composer-capture-telemetry" target="_blank">Capture telemetry with Application Insights</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Calculated ROI for every AI agent &mdash; required for stakeholder sign off.</td>
+            <td><strong>Copilot Studio agent usage estimator</strong> for the projected Copilot Credit cost; <strong>Copilot Studio Analytics &rarr; See billing</strong> for actual consumption to validate the savings model.</td>
+            <td><a href="https://microsoft.github.io/copilot-studio-estimator/" target="_blank">Agent usage estimator</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/analytics-consumption" target="_blank">Billing consumption</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Sales managers report agent adoption to stakeholders monthly.</td>
+            <td><strong>Power Platform Center of Excellence (CoE) Starter Kit</strong> Power BI dashboard &mdash; the Bots page tracks Copilot Studio bot inventory, makers, and adoption trends. Combine with built-in Copilot Studio Analytics for engagement and resolution metrics.</td>
+            <td><a href="https://learn.microsoft.com/power-platform/guidance/coe/power-bi-monitor#bots" target="_blank">CoE dashboard &mdash; Bots</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/analytics-overview" target="_blank">Copilot Studio Analytics overview</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Track sensitive info (user IDs, names) shared via the agent for future auditing.</td>
+            <td><strong>Microsoft Purview DSPM for AI &mdash; Activity Explorer</strong> surfaces agent prompts and responses with sensitive information types and labels. Combine with sensitivity labels on Dataverse columns and the Copilot Studio Application Insights "Log sensitive Activity properties" toggle for the engineering audit trail.</td>
+            <td><a href="https://learn.microsoft.com/purview/data-security-posture-management-learn-about" target="_blank">DSPM for AI</a> &middot; <a href="https://learn.microsoft.com/purview/ai-copilot-studio" target="_blank">Purview for Copilot Studio</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card req">
+      <h2>Adoption gating <span class="pill">Why it matters</span></h2>
+      <ul>
+        <li>Stakeholders fund future AI work only if month-over-month adoption rises, so every choice has to lower friction.</li>
+        <li>Hands-free voice is the wedge: it removes the keyboard from the sales call, which was the original blocker.</li>
+        <li>Single low-code agent on Dataverse keeps maintenance light, which lets the team iterate fast on adoption feedback.</li>
+        <li>Adoption metric of record is published from the <strong>CoE Starter Kit</strong> Bots page, so the monthly stakeholder report is repeatable.</li>
+      </ul>
+    </div>
+
+    <div class="card req">
+      <h2>Responsible AI &amp; safety <span class="pill">Cross-cutting</span></h2>
+      <ul>
+        <li>Apply Microsoft's six Responsible AI principles (fairness, reliability and safety, privacy and security, inclusiveness, transparency, accountability).</li>
+        <li>Disclose to the user that they are interacting with AI; show the agent's identity in voice greetings.</li>
+        <li>Built-in content safety filters and prompt enrichment mitigate harmful outputs.</li>
+        <li>Sensitive domains (finance, customer PII) require approval flows and reversible actions only.</li>
+      </ul>
+    </div>
+
+    <div class="card map full-row">
+      <h2>End-to-end picture</h2>
+      <div class="arch">Sales executive on a headset (mobile / Teams / phone)
+        |
+        v
+Voice-enabled Copilot Studio agent  (single agent, low-code, generative orchestration)
+        |
+        +-- Knowledge: Dataverse SSOT (sensitivity-labelled)
+        +-- Tool: Dynamics 365 Sales (records, opportunities, follow-up email drafts)
+        +-- Channel: Telephony (Speech + DTMF, barge-in, SSML)
+        +-- Channel: Microsoft Teams / Demo Website
+        +-- Fallback: rephrase x2  ->  Escalate  ->  Live rep in D365 Customer Service
+                          |
+                          v
+        Observability + governance plane
+        +-- Application Insights (logged messages, custom events, Kusto queries)
+        +-- Copilot Studio Analytics (engagement, resolution, escalation, CSAT)
+        +-- Power Platform CoE Starter Kit (monthly adoption report to stakeholders)
+        +-- Microsoft Purview DSPM for AI Activity Explorer (sensitive data audit)
+        +-- Copilot Studio agent usage estimator + Billing consumption (ROI vs. actuals)</div>
+    </div>
+
+    <div class="card full-row">
+      <h2>Why each pick beats the alternative</h2>
+      <ul>
+        <li><strong>CAF over Success by Design.</strong> Success by Design is for D365 implementations. The case study explicitly calls for an infrastructure migration, which is CAF Migrate territory.</li>
+        <li><strong>One Copilot Studio agent over many.</strong> The case study mandates a single low-code agent grounded in Dataverse.</li>
+        <li><strong>Voice agent template over building voice topics from scratch.</strong> The template ships Telephony, DTMF, silence detection, and an Optimize-for-voice mode out of the box.</li>
+        <li><strong>Default Fallback &rarr; Escalate over a custom error path.</strong> The default behaviour already retries twice and escalates, which matches the requirement word-for-word.</li>
+        <li><strong>Application Insights over Copilot Studio analytics alone.</strong> Native analytics show engagement and outcomes; Application Insights gives the message-level Kusto-queryable detail the requirement asks for.</li>
+        <li><strong>CoE Starter Kit over a one-off Power BI report.</strong> The CoE Bots page is purpose-built to report Copilot Studio adoption monthly across the tenant.</li>
+        <li><strong>Purview DSPM for AI over a homemade audit log.</strong> Activity Explorer captures the prompt, response, user, and sensitive data type Microsoft already classifies for you.</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "quiz_theme";
+  var btn = document.getElementById("theme-toggle");
+  function apply(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    btn.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  }
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch(e) {}
+  var params = new URLSearchParams(location.search);
+  var initial = params.get("theme") || stored || "dark";
+  apply(initial);
+  btn.addEventListener("click", function(){
+    var current = document.documentElement.getAttribute("data-theme") || "dark";
+    var next = current === "dark" ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem(KEY, next); } catch(e) {}
+  });
+})();
+</script>
+</body>
+</html>

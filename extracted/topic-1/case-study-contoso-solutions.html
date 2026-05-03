@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Topic 1 Case Study Solutions: Contoso, Ltd.</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f1419;
+    --surface: #1a2129;
+    --surface-2: #232c36;
+    --border: #2d3845;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #58a6ff;
+    --warn: #f0883e;
+    --good: #3fb950;
+    --bad: #f85149;
+    --purple: #b392f0;
+    --teal: #56d4dd;
+    --tag: #2a3441;
+    --shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface-2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #57606a;
+    --accent: #0969da;
+    --warn: #bc4c00;
+    --good: #1a7f37;
+    --bad: #cf222e;
+    --purple: #8250df;
+    --teal: #0c7c8a;
+    --tag: #eef1f4;
+    --shadow: 0 6px 18px rgba(31,35,40,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16.5px/1.55 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    padding: 28px;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  h1 { margin: 0 0 4px; font-size: 34px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 17px; }
+  .theme-toggle {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .theme-toggle:hover { background: var(--surface-2); }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .tag {
+    background: var(--tag);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 13.5px;
+    border: 1px solid var(--border);
+  }
+  .tag.accent { color: var(--accent); border-color: var(--accent); }
+  .tag.warn { color: var(--warn); border-color: var(--warn); }
+  .tag.good { color: var(--good); border-color: var(--good); }
+  .tag.purple { color: var(--purple); border-color: var(--purple); }
+  .tag.teal { color: var(--teal); border-color: var(--teal); }
+  .grid {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .card h2 .pill {
+    float: right;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--surface-2);
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 8px; font-size: 15px; }
+  li::marker { color: var(--muted); }
+  .full-row { grid-column: 1 / -1; }
+  .map { border-left: 4px solid var(--accent); }
+  .req { border-left: 4px solid var(--good); }
+  .map-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .map-table th, .map-table td {
+    text-align: left;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .map-table th {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    background: var(--surface-2);
+  }
+  .map-table tr:last-child td { border-bottom: none; }
+  .map-table .req-col { width: 38%; color: var(--text); }
+  .map-table code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .arch {
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13.5px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text);
+  }
+  .exec-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .exec-table th, .exec-table td {
+    text-align: left;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .exec-table th {
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    background: var(--surface-2);
+  }
+  .exec-table tr:last-child td { border-bottom: none; }
+  .exec-table .role-col { width: 12%; color: var(--purple); font-weight: 600; }
+  @media (max-width: 760px) {
+    body { padding: 18px; font-size: 16px; }
+    h1 { font-size: 26px; }
+    .arch { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <h1>Contoso, Ltd. &mdash; Solution Architecture</h1>
+      <div class="subtitle">Topic 1 case study, mapped requirement-by-requirement to Microsoft services. Every choice is grounded in Microsoft Learn.</div>
+    </div>
+    <button id="theme-toggle" class="theme-toggle" type="button">Light mode</button>
+  </div>
+
+  <div class="meta-row">
+    <span class="tag accent">CAF for AI + AI agent adoption</span>
+    <span class="tag teal">Dynamics 365 SCM agent templates</span>
+    <span class="tag purple">Copilot Studio (generative orchestration)</span>
+    <span class="tag good">MCP + A2A multi-agent</span>
+    <span class="tag warn">Purview Information Protection</span>
+    <span class="tag">Defender XDR AI agent inventory</span>
+    <span class="tag">Foundry safety evaluations</span>
+  </div>
+
+  <div class="card req full-row" style="margin-bottom: 18px;">
+    <h2>Executive responsibility map <span class="pill">Five execs, five tools</span></h2>
+    <table class="exec-table">
+      <thead>
+        <tr><th class="role-col">Exec</th><th>Case-study ask</th><th>Microsoft service</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="role-col">CTO</td>
+          <td>Pick one prebuilt D365 SCM agent + one custom Copilot Studio agent.</td>
+          <td><strong>Dynamics 365 agent template catalog</strong> (browse the templates) plus <strong>Copilot Studio</strong> for the custom agent. Recommended SCM template: <strong>Supplier Communications Agent</strong> (production-ready preview), or the Inventory Fulfillment Agent / Adaptive Skills Policy Agent. <a href="https://learn.microsoft.com/dynamics365/guidance/agent-templates/overview" target="_blank">Templates</a> &middot; <a href="https://learn.microsoft.com/dynamics365/supply-chain/procurement/supplier-com-agent-setup" target="_blank">Supplier Communications Agent</a></td>
+        </tr>
+        <tr>
+          <td class="role-col">CIO</td>
+          <td>Apply security labels to the data the agents use.</td>
+          <td><strong>Microsoft Purview Information Protection sensitivity labels</strong> with auto-label policies on Dataverse columns; labels surface in Copilot Studio at maker time and in agent responses. <a href="https://learn.microsoft.com/microsoft-copilot-studio/sensitivity-label-copilot-studio" target="_blank">Sensitivity labels in agent responses</a></td>
+        </tr>
+        <tr>
+          <td class="role-col">CFO</td>
+          <td>ROI estimate vs. actuals each quarter using the Copilot Studio agent usage estimator.</td>
+          <td><a href="https://microsoft.github.io/copilot-studio-estimator/" target="_blank">Agent usage estimator</a> for projections, then <a href="https://learn.microsoft.com/microsoft-copilot-studio/analytics-consumption" target="_blank">Copilot Studio Analytics &gt; See billing</a> for actual Copilot Credit consumption and the abandoned vs. resolved session split.</td>
+        </tr>
+        <tr>
+          <td class="role-col">CISO</td>
+          <td>Discover and inventory AI resources for monthly audit; identify how much sensitive data each agent run touched and who accessed it.</td>
+          <td><strong>Microsoft Defender XDR &gt; Assets &gt; AI Agents</strong> for the agent inventory; <strong>Defender for Cloud (Defender CSPM)</strong> for the AI bill of materials; <strong>Microsoft Purview DSPM for AI &gt; Activity Explorer</strong> for prompt/response-level sensitive-data exposure per user. Pair with <strong>Insider Risk Management</strong> for over-access alerts. <a href="https://learn.microsoft.com/defender-xdr/security-for-ai/ai-agent-inventory" target="_blank">AI agent inventory</a> &middot; <a href="https://learn.microsoft.com/purview/data-security-posture-management-learn-about" target="_blank">DSPM for AI</a></td>
+        </tr>
+        <tr>
+          <td class="role-col">CEO</td>
+          <td>Quarterly responsible-AI assessment that verifies reliability, interpretability, fairness, compliance.</td>
+          <td><strong>Microsoft Foundry risk and safety evaluations</strong> (hateful and unfair, violence, self-harm, sexual, protected material, jailbreak) plus the <strong>Responsible AI dashboard</strong> with Responsible AI scorecard. Anchored to Microsoft's six Responsible AI principles. <a href="https://learn.microsoft.com/azure/foundry/concepts/safety-evaluations-transparency-note" target="_blank">Foundry safety evaluations</a> &middot; <a href="https://learn.microsoft.com/azure/machine-learning/concept-responsible-ai-dashboard" target="_blank">Responsible AI dashboard</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid">
+
+    <div class="card map full-row">
+      <h2>Custom Copilot Studio agent &mdash; requirement &rarr; design</h2>
+      <table class="map-table">
+        <thead>
+          <tr>
+            <th class="req-col">Custom agent requirement</th>
+            <th>Microsoft service / pattern</th>
+            <th>Microsoft Learn anchor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="req-col">Low-code agent that uses D365 Supply Chain Management data, for the manufacturing team.</td>
+            <td><strong>Copilot Studio</strong> custom agent. Connect the <strong>Dynamics 365 ERP MCP server</strong> as a tool so the agent reads data and runs business logic in finance and operations apps without custom code.</td>
+            <td><a href="https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/copilot/build-agent-mcp" target="_blank">Build an agent with Dynamics 365 ERP MCP</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Accessible from Microsoft Teams.</td>
+            <td>Publish to the <strong>Microsoft Teams and Microsoft 365 Copilot</strong> channel from Copilot Studio.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/channels" target="_blank">Publish agents to channels</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Connect to other agents based on description.</td>
+            <td>Turn on <strong>generative orchestration</strong> and add <strong>connected Copilot Studio agents</strong> plus <strong>external A2A agents</strong>; the orchestrator chooses the right one from each agent's description.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/advanced-generative-actions" target="_blank">Generative orchestration</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/add-agent-agent-to-agent" target="_blank">Connect via A2A</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Topics triggered by description, not by trigger phrase.</td>
+            <td>Generative orchestration replaces "User says a phrase" with <strong>The agent chooses</strong>. The topic name plus description controls when it fires &mdash; no trigger phrases needed.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/authoring-triggers" target="_blank">Set topic triggers</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Answer questions about product specifications using the existing R&amp;D MCP server.</td>
+            <td>Connect the existing <strong>R&amp;D MCP server</strong> through the <strong>MCP onboarding wizard</strong> in Copilot Studio (Streamable transport, OAuth). MCP requires generative orchestration.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/agent-extend-action-mcp" target="_blank">Extend agent with MCP</a> &middot; <a href="https://learn.microsoft.com/microsoft-copilot-studio/mcp-add-existing-server-to-agent" target="_blank">Connect existing MCP server</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Integrated with and accessible from Dynamics 365 SCM.</td>
+            <td>Surface the agent in the <strong>finance and operations Copilot sidecar</strong>. The sidecar is bound to a Copilot Studio chatbot you extend with your topics, tools, and connected agents.</td>
+            <td><a href="https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/copilot/copilot-architecture" target="_blank">Architecture of Copilot in finance and operations apps</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">Use D365 SCM business logic stored outside the application.</td>
+            <td>Same <strong>Dynamics 365 ERP MCP server</strong> &mdash; it exposes the application's business logic to the agent as MCP tools.</td>
+            <td><a href="https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/copilot/build-agent-mcp" target="_blank">ERP MCP build guide</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card map full-row">
+      <h2>Analysis, reporting &amp; troubleshooting &mdash; requirement &rarr; service</h2>
+      <table class="map-table">
+        <thead>
+          <tr>
+            <th class="req-col">Requirement</th>
+            <th>Microsoft service</th>
+            <th>Microsoft Learn anchor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="req-col">CISO monthly audit of all AI solutions for compliance and security.</td>
+            <td><strong>Defender XDR AI agent inventory</strong> (Copilot Studio + Foundry), <strong>Defender CSPM</strong> for the AI BOM and attack-path analysis.</td>
+            <td><a href="https://learn.microsoft.com/azure/defender-for-cloud/ai-security-posture" target="_blank">AI security posture management</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">CFO quarterly ROI: estimate vs. actual using the Copilot Studio agent usage estimator.</td>
+            <td>The named tool itself, then the Copilot Studio Analytics billing trend, cost distribution, and monthly credit limit charts for actuals.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/requirements-messages-management" target="_blank">Billing rates and management</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">CISO sees how much sensitive data each agent run touched and who accessed it.</td>
+            <td><strong>Purview DSPM for AI &gt; Activity Explorer</strong> &mdash; AI activities tab shows the prompt, response, user, app, and any sensitive info types or labels detected. Combine with Insider Risk Management.</td>
+            <td><a href="https://learn.microsoft.com/purview/ai-copilot-studio" target="_blank">Purview for Copilot Studio</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">CTO tracks user feedback on response quality; consistently poor feedback triggers reengineering.</td>
+            <td><strong>Copilot Studio Analytics &gt; Effectiveness &gt; Reactions</strong> (thumbs up/down with comments), CSAT, plus the Sentiment preview.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/analytics-improve-agent-effectiveness" target="_blank">Analyze conversational agent effectiveness</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">CEO quarterly responsible-AI assessment (reliability, interpretability, fairness, compliance) using Microsoft-recommended tools.</td>
+            <td><strong>Microsoft Foundry risk and safety evaluations</strong>, <strong>Responsible AI dashboard</strong>, and the <strong>Responsible AI scorecard</strong>. Plan with the AI Impact Assessment template + HAX Toolkit + Responsible AI Maturity Model.</td>
+            <td><a href="https://learn.microsoft.com/azure/cloud-adoption-framework/ai/plan" target="_blank">Plan for AI adoption &mdash; Implement responsible AI</a></td>
+          </tr>
+          <tr>
+            <td class="req-col">CFO measures abandoned vs. resolved sessions per day to spot inefficient Copilot Studio credit use.</td>
+            <td><strong>Copilot Studio Analytics &gt; Conversation outcomes</strong> splits each session into Resolved / Escalated / Abandoned / Unengaged.</td>
+            <td><a href="https://learn.microsoft.com/microsoft-copilot-studio/guidance/measuring-outcomes" target="_blank">Measure agent outcomes</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card req">
+      <h2>Foundation: AI adoption &amp; governance <span class="pill">Cross-cutting</span></h2>
+      <ul>
+        <li>Use the <strong>Cloud Adoption Framework for AI</strong> (Strategy &rarr; Plan &rarr; Ready &rarr; Govern &rarr; Secure &rarr; Manage) and the <strong>AI agent adoption</strong> sub-track for the agent-specific decisions.</li>
+        <li>Multiple legal entities and Azure subscriptions: lay down <strong>Azure landing zones</strong> for the platform, and one <strong>Power Platform environment per legal-entity / data-residency boundary</strong> so DLP, Dataverse, and Copilot Studio agents are scoped per entity.</li>
+        <li>Every initiative must have a business case, defined audience profile, and ROI &mdash; this is the gate the CFO and CEO use.</li>
+        <li>Anchor responsible AI in the six Microsoft principles: fairness, reliability and safety, privacy and security, inclusiveness, transparency, accountability.</li>
+      </ul>
+    </div>
+
+    <div class="card req">
+      <h2>R&amp;D MCP server reuse <span class="pill">Existing technology</span></h2>
+      <ul>
+        <li>The case study explicitly states R&amp;D already runs an MCP server with product specs and compliance data.</li>
+        <li>Plug it straight into Copilot Studio with the MCP onboarding wizard. No new connector code required.</li>
+        <li>This is also why the agent must use generative orchestration &mdash; MCP integration in Copilot Studio is generative-only.</li>
+        <li>Patents and engineering designs are sensitive: apply Purview labels to the underlying Dataverse columns and let the labels propagate through the agent's responses.</li>
+      </ul>
+    </div>
+
+    <div class="card map full-row">
+      <h2>End-to-end picture</h2>
+      <div class="arch">Manufacturing user (Microsoft Teams or D365 SCM Copilot sidecar)
+        |
+        v
+Custom Copilot Studio agent  (generative orchestration)
+        |
+        +-- MCP tool: R&D product specs (existing R&D MCP server)
+        +-- MCP tool: Dynamics 365 ERP MCP (SCM data + business logic outside the app)
+        +-- Connected agents: Copilot Studio sub-agents + external A2A agents
+        +-- Knowledge: Dataverse (Purview auto-label)
+        +-- Channels: Microsoft Teams + Copilot for finance & operations sidecar
+                          |
+                          v
+        Governance / observability plane
+        +-- Defender XDR AI agent inventory (CISO)
+        +-- Defender for Cloud CSPM (CISO AI BOM)
+        +-- Purview DSPM for AI Activity Explorer (CISO sensitive-data per run)
+        +-- Purview Insider Risk Management (CISO over-access alerts)
+        +-- Copilot Studio Analytics: billing, outcomes, reactions, CSAT (CFO + CTO)
+        +-- Foundry safety evaluations + Responsible AI dashboard (CEO)</div>
+    </div>
+
+    <div class="card full-row">
+      <h2>Why each pick beats the alternative</h2>
+      <ul>
+        <li><strong>Supplier Communications Agent over Release Planner / Trace Parser.</strong> The brief is a manufacturing SCM use case with rapid-growth ROI. Procurement automation is the highest-leverage prebuilt option.</li>
+        <li><strong>Generative orchestration over classic.</strong> The case study calls out "topics selected by description, not trigger phrase" &mdash; that is the literal definition of generative orchestration.</li>
+        <li><strong>MCP for the existing R&amp;D server over a custom Power Platform connector.</strong> The R&amp;D MCP server already exists. MCP is the supported, no-code path to surface it in Copilot Studio.</li>
+        <li><strong>A2A for "connect to other agents based on description" over HTTP connectors.</strong> A2A was built for cross-platform agent-to-agent communication with capability discovery via agent cards.</li>
+        <li><strong>Defender XDR AI agent inventory over a custom CMDB entry.</strong> The inventory natively discovers Copilot Studio and Foundry agents and surfaces posture insights without manual upkeep.</li>
+        <li><strong>Purview DSPM for AI Activity Explorer over Application Insights.</strong> Activity Explorer classifies sensitive info types automatically and ties them to the user; Application Insights would require building this from scratch.</li>
+        <li><strong>Foundry safety evaluations + Responsible AI dashboard over a generic governance review.</strong> They are the Microsoft-recommended tools that map directly to the four metrics (reliability, interpretability, fairness, compliance) the CEO requires.</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "quiz_theme";
+  var btn = document.getElementById("theme-toggle");
+  function apply(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    btn.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  }
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch(e) {}
+  var params = new URLSearchParams(location.search);
+  var initial = params.get("theme") || stored || "dark";
+  apply(initial);
+  btn.addEventListener("click", function(){
+    var current = document.documentElement.getAttribute("data-theme") || "dark";
+    var next = current === "dark" ? "light" : "dark";
+    apply(next);
+    try { localStorage.setItem(KEY, next); } catch(e) {}
+  });
+})();
+</script>
+</body>
+</html>

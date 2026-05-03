@@ -273,6 +273,12 @@ html, body {
   cursor: pointer;
 }
 .cs-button:hover { background: var(--warn-soft); }
+.cs-button + .cs-button { margin-left: 8px; }
+.cs-button-sol {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cs-button-sol:hover { background: var(--accent-soft); }
 
 .question-text {
   font-size: 18.5px;

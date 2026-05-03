@@ -60,6 +60,11 @@
     Contoso:  "../extracted/topic-1/case-study-contoso.html",
   };
 
+  const CASE_STUDY_SOLUTION_PATHS = {
+    Fabrikam: "../extracted/topic-1/case-study-solutions.html",
+    Contoso:  "../extracted/topic-1/case-study-contoso-solutions.html",
+  };
+
   let questions = [];
   let domains = DOMAIN_FALLBACK;
   let order = [];
@@ -674,6 +679,9 @@
     if (q.case_study) {
       tags.push(`<span class="tag tag-case">Case Study: ${escapeHtml(q.case_study)}</span>`);
       tags.push(`<button class="cs-button" data-cs="${escapeHtml(q.case_study)}" type="button">View case study</button>`);
+      if (CASE_STUDY_SOLUTION_PATHS[q.case_study]) {
+        tags.push(`<button class="cs-button cs-button-sol" data-cs-sol="${escapeHtml(q.case_study)}" type="button">View case study solutions</button>`);
+      }
     }
     const ttsAvailable = !!(window.Voice && Voice.hasTTS);
     const asrAvailable = !!(window.Voice && Voice.hasASR);
@@ -889,7 +897,10 @@
 
   function attachHandlers(q) {
     slideEl.querySelectorAll(".cs-button").forEach(btn => {
-      btn.addEventListener("click", () => openCaseStudy(btn.dataset.cs));
+      btn.addEventListener("click", () => {
+        if (btn.dataset.csSol) openCaseStudy(btn.dataset.csSol, "solutions");
+        else openCaseStudy(btn.dataset.cs, "case");
+      });
     });
     const readBtn = slideEl.querySelector("[data-voice-read]");
     if (readBtn) readBtn.addEventListener("click", toggleRead);
@@ -1088,10 +1099,11 @@
   }
 
   /* ---------- Case study modal ---------- */
-  function openCaseStudy(name) {
-    const path = CASE_STUDY_PATHS[name];
+  function openCaseStudy(name, kind) {
+    const map = kind === "solutions" ? CASE_STUDY_SOLUTION_PATHS : CASE_STUDY_PATHS;
+    const path = map[name];
     if (!path) return;
-    csTitle.textContent = "Case Study: " + name;
+    csTitle.textContent = (kind === "solutions" ? "Case Study Solutions: " : "Case Study: ") + name;
     const sep = path.indexOf("?") === -1 ? "?" : "&";
     csFrame.src = path + sep + "theme=" + currentTheme();
     csModal.hidden = false;
@@ -1154,7 +1166,13 @@
       const q = questions[order[cursor]];
       if (q && q.case_study && CASE_STUDY_PATHS[q.case_study]) {
         e.preventDefault();
-        openCaseStudy(q.case_study);
+        openCaseStudy(q.case_study, "case");
+      }
+    } else if ((e.key === "s" || e.key === "S") && csModal.hidden && pickerModalEl.hidden && voiceModalEl.hidden) {
+      const q = questions[order[cursor]];
+      if (q && q.case_study && CASE_STUDY_SOLUTION_PATHS[q.case_study]) {
+        e.preventDefault();
+        openCaseStudy(q.case_study, "solutions");
       }
     } else if ((e.key === "v" || e.key === "V") && pickerModalEl.hidden && voiceModalEl.hidden && csModal.hidden) {
       const q = (cursor < order.length) ? questions[order[cursor]] : null;
