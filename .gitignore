@@ -12,3 +12,6 @@ Thumbs.db
 # Source PDFs and raw extraction artifacts (kept locally, not published)
 *.pdf
 _work/
+
+# Generated study PDF is committed so GitHub Pages can serve it.
+!docs/AB-100-Practice-Questions.pdf
