@@ -13,5 +13,5 @@ Thumbs.db
 *.pdf
 _work/
 
-# Generated study PDF is committed so GitHub Pages can serve it.
-!docs/AB-100-Practice-Questions.pdf
+# Generated study PDFs are committed so GitHub Pages can serve them.
+!docs/AB-100-Practice-Questions*.pdf

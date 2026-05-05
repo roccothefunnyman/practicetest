@@ -1,9 +1,13 @@
-"""Render app/questions.json into a printable PDF study sheet.
+"""Render app/questions.json into printable PDF study sheets.
 
 Run from the practicetest/ folder:
     py make_pdf.py
 
-Output: practicetest/docs/AB-100-Practice-Questions.pdf
+Outputs (under practicetest/docs/):
+    AB-100-Practice-Questions.pdf          all 103 questions
+    AB-100-Practice-Questions-Plan.pdf     Plan domain only
+    AB-100-Practice-Questions-Design.pdf   Design domain only
+    AB-100-Practice-Questions-Deploy.pdf   Deploy domain only
 
 Each question is laid out with its stem and answer choices, followed by the
 correct answer and the full explanation grounded in Microsoft Learn. Question
@@ -13,7 +17,6 @@ types covered: multiple-choice, multi-select, hotspot, drag-drop.
 import json
 import re
 from datetime import date
-from html import escape
 from pathlib import Path
 
 import markdown as md
@@ -21,9 +24,14 @@ from fpdf import FPDF
 
 ROOT = Path(__file__).parent
 QUESTIONS_JSON = ROOT / "app" / "questions.json"
-OUTPUT_PDF = ROOT / "docs" / "AB-100-Practice-Questions.pdf"
+OUTPUT_DIR = ROOT / "docs"
 
 DOMAIN_LABEL = {"plan": "Plan", "design": "Design", "deploy": "Deploy"}
+DOMAIN_BLURB = {
+    "plan": "Plan AI-powered business solutions (25-30% of the AB-100 exam).",
+    "design": "Design AI-powered business solutions (25-30% of the AB-100 exam).",
+    "deploy": "Deploy AI-powered business solutions (40-45% of the AB-100 exam).",
+}
 TYPE_LABEL = {
     "multiple-choice": "Multiple choice",
     "multi-select": "Multi-select",
@@ -34,12 +42,12 @@ TYPE_LABEL = {
 
 
 class StudyPDF(FPDF):
-    def __init__(self):
+    def __init__(self, title_text="AB-100 Practice Questions"):
         super().__init__(orientation="P", unit="mm", format="A4")
         self.set_auto_page_break(auto=True, margin=18)
         self.set_margins(left=18, top=18, right=18)
         self.alias_nb_pages()
-        self.title_text = "AB-100 Practice Questions"
+        self.title_text = title_text
         self.section_label = ""
 
     def header(self):
@@ -117,17 +125,23 @@ def write_text(pdf, text, font="Helvetica", style="", size=10.5, line_h=5.0):
     mcell(pdf, text, line_h)
 
 
-def cover_page(pdf, total, by_type, by_cat):
+def cover_page(pdf, title, subtitle, total, by_type, by_cat, domain=None):
     pdf.add_page()
     pdf.set_y(60)
     pdf.set_font("Helvetica", "B", 26)
-    pdf.cell(0, 14, "AB-100 Practice Questions", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 14, title, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 14)
-    pdf.cell(0, 8, "Agentic AI Business Solutions Architect", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, subtitle, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
     pdf.set_font("Helvetica", "", 11)
     pdf.cell(0, 6, f"Generated {date.today().isoformat()}", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.cell(0, 6, f"{total} questions, with answers and explanations", align="C", new_x="LMARGIN", new_y="NEXT")
+    if domain and domain in DOMAIN_BLURB:
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(90, 90, 90)
+        pdf.cell(0, 6, DOMAIN_BLURB[domain], align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
     pdf.ln(14)
 
     pdf.set_font("Helvetica", "B", 12)
@@ -139,13 +153,19 @@ def cover_page(pdf, total, by_type, by_cat):
     pdf.ln(4)
 
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 7, "AB-100 domain coverage", new_x="LMARGIN", new_y="NEXT")
+    heading = "AB-100 domain coverage" if domain is None else "Topic coverage"
+    pdf.cell(0, 7, heading, new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 11)
-    total_cat = sum(by_cat.values()) or 1
-    for code in ("plan", "design", "deploy"):
-        n = by_cat.get(code, 0)
-        pct = n / total_cat * 100
-        pdf.cell(0, 6, f"  {DOMAIN_LABEL[code]}: {n} ({pct:.1f}%)", new_x="LMARGIN", new_y="NEXT")
+    if domain is None:
+        total_cat = sum(by_cat.values()) or 1
+        for code in ("plan", "design", "deploy"):
+            n = by_cat.get(code, 0)
+            pct = n / total_cat * 100
+            pdf.cell(0, 6, f"  {DOMAIN_LABEL[code]}: {n} ({pct:.1f}%)", new_x="LMARGIN", new_y="NEXT")
+    else:
+        for topic_num in sorted(by_cat.keys()):
+            n = by_cat[topic_num]
+            pdf.cell(0, 6, f"  Topic {topic_num}: {n}", new_x="LMARGIN", new_y="NEXT")
 
     pdf.ln(10)
     pdf.set_font("Helvetica", "I", 9)
@@ -289,25 +309,23 @@ def render_question(pdf, q):
     pdf.ln(6)
 
 
-def main():
-    if not QUESTIONS_JSON.exists():
-        raise SystemExit(f"Missing {QUESTIONS_JSON}. Run `py build.py` first.")
-
-    data = json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))
-    questions = data["questions"]
-
+def build_pdf(questions, output_path, title, subtitle, domain=None):
+    """Render the supplied list of questions into a single PDF file."""
     by_type = {}
-    by_cat = {}
+    by_cat_overall = {}
+    by_topic_count = {}
     for q in questions:
         by_type[q["type"]] = by_type.get(q["type"], 0) + 1
         if q.get("category"):
-            by_cat[q["category"]] = by_cat.get(q["category"], 0) + 1
+            by_cat_overall[q["category"]] = by_cat_overall.get(q["category"], 0) + 1
+        by_topic_count[q["topic"]] = by_topic_count.get(q["topic"], 0) + 1
 
-    pdf = StudyPDF()
-    pdf.set_title("AB-100 Practice Questions")
+    pdf = StudyPDF(title_text=title)
+    pdf.set_title(title)
     pdf.set_author("practicetest")
 
-    cover_page(pdf, len(questions), by_type, by_cat)
+    cover_stats = by_topic_count if domain else by_cat_overall
+    cover_page(pdf, title, subtitle, len(questions), by_type, cover_stats, domain=domain)
 
     by_topic = {}
     for q in questions:
@@ -325,10 +343,43 @@ def main():
                 pdf.add_page()
             render_question(pdf, q)
 
-    OUTPUT_PDF.parent.mkdir(parents=True, exist_ok=True)
-    pdf.output(str(OUTPUT_PDF))
-    size_kb = OUTPUT_PDF.stat().st_size / 1024
-    print(f"Wrote {OUTPUT_PDF.relative_to(ROOT)} ({size_kb:.1f} KB, {len(questions)} questions)")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf.output(str(output_path))
+    size_kb = output_path.stat().st_size / 1024
+    print(f"Wrote {output_path.relative_to(ROOT)} ({size_kb:.1f} KB, {len(questions)} questions)")
+
+
+def main():
+    if not QUESTIONS_JSON.exists():
+        raise SystemExit(f"Missing {QUESTIONS_JSON}. Run `py build.py` first.")
+
+    data = json.loads(QUESTIONS_JSON.read_text(encoding="utf-8"))
+    questions = data["questions"]
+
+    subtitle = "Agentic AI Business Solutions Architect"
+
+    # Combined PDF (all 103 questions).
+    build_pdf(
+        questions,
+        OUTPUT_DIR / "AB-100-Practice-Questions.pdf",
+        title="AB-100 Practice Questions",
+        subtitle=subtitle,
+    )
+
+    # One PDF per AB-100 domain.
+    for code in ("plan", "design", "deploy"):
+        subset = [q for q in questions if q.get("category") == code]
+        if not subset:
+            print(f"  (skipping {code}: no questions tagged with this domain)")
+            continue
+        label = DOMAIN_LABEL[code]
+        build_pdf(
+            subset,
+            OUTPUT_DIR / f"AB-100-Practice-Questions-{label}.pdf",
+            title=f"AB-100 Practice Questions - {label}",
+            subtitle=f"{subtitle} | {label} domain",
+            domain=code,
+        )
 
 
 if __name__ == "__main__":
