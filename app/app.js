@@ -72,6 +72,7 @@
   let revealed = false;
   let picks = null;
   let stats = loadStats();
+  let sessionAnswered = new Set();
   let pickerSelected = new Set();
   let voicePrefs = loadVoicePrefs();
   let activeListen = null;
@@ -390,7 +391,11 @@
     } catch (_) { return null; }
   }
   function saveSession() {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ order, cursor }));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      order,
+      cursor,
+      answered: Array.from(sessionAnswered),
+    }));
   }
   function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
 
@@ -403,6 +408,7 @@
     cursor = 0;
     revealed = false;
     picks = null;
+    sessionAnswered = new Set();
     saveSession();
     closePicker();
     render();
@@ -624,6 +630,7 @@
       if (!q) return;
       const cat = q.category;
       if (cat && byCat[cat]) byCat[cat].total += 1;
+      if (!sessionAnswered.has(q.id)) return;
       const s = stats[q.id];
       if (s === "correct") {
         correct += 1;
@@ -942,6 +949,7 @@
     const v = gradeAll(q);
     if (v === "correct" || v === "wrong") {
       recordResult(q.id, v);
+      sessionAnswered.add(q.id);
     }
     saveSession();
     stopListening();
@@ -1203,9 +1211,11 @@
           && saved.order.every(i => i >= 0 && i < questions.length)) {
         order = saved.order;
         cursor = saved.cursor || 0;
+        sessionAnswered = new Set(Array.isArray(saved.answered) ? saved.answered : []);
       } else {
         order = shuffle(questions.map((_, i) => i));
         cursor = 0;
+        sessionAnswered = new Set();
         saveSession();
       }
       revealed = false;
