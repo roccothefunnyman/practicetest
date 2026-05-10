@@ -172,3 +172,121 @@ def lint_questions(records: Iterable[dict], read_answer_body) -> list[str]:
         body = read_answer_body(q["id"])
         warnings.extend(lint_question(q, body))
     return warnings
+
+
+# ---------- remapper ----------
+
+# Regions where letters must NEVER be rewritten — code, URLs, link targets.
+def _no_touch_spans(body: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    for m in _FENCED_CODE.finditer(body):
+        spans.append((m.start(), m.end()))
+    for m in _INLINE_CODE.finditer(body):
+        spans.append((m.start(), m.end()))
+    for m in _URLS.finditer(body):
+        spans.append((m.start(), m.end()))
+    for m in _LINK_TARGET.finditer(body):
+        spans.append((m.start(1), m.end(1)))
+    return spans
+
+
+def _in_no_touch(pos: int, spans: list[tuple[int, int]]) -> bool:
+    for s, e in spans:
+        if s <= pos < e:
+            return True
+    return False
+
+
+def remap_body(body: str, letter_map: dict[str, str]) -> str:
+    """Rewrite every anchored letter reference in `body` per `letter_map`.
+
+    `letter_map` maps original_letter (A..Z) → new_letter (A..Z). Letters
+    not in the map, and any A..Z occurrence not anchored by one of the
+    structured patterns (HEADER_SINGLE/COMPOUND, CORRECT_ANSWER_BLOCK,
+    BOLD_LETTER_DOT, BOLD_LETTER_ALONE, PAREN_SINGLE), are left untouched.
+
+    Identity invariant: if letter_map is empty or maps every letter to
+    itself, the output equals the input byte-for-byte.
+
+    Bijective invariant: for any permutation P, remap(remap(body, P), inv(P))
+    equals body.
+    """
+    if not letter_map or all(k == v for k, v in letter_map.items()):
+        return body
+
+    no_touch = _no_touch_spans(body)
+    # Each rewrite is (position, original_letter, new_letter). Dedup by position.
+    rewrites: dict[int, tuple[str, str]] = {}
+
+    def add(pos: int, original: str):
+        if original not in letter_map or letter_map[original] == original:
+            return
+        if _in_no_touch(pos, no_touch):
+            return
+        new = letter_map[original]
+        existing = rewrites.get(pos)
+        if existing is not None and existing != (original, new):
+            raise AssertionError(
+                f"Conflicting rewrite at offset {pos}: "
+                f"existing {existing} vs new ({original!r}, {new!r}). "
+                f"Pattern set has overlapping disagreement — bug."
+            )
+        rewrites[pos] = (original, new)
+
+    # Pattern 1: single-letter "Why X is correct/wrong/incorrect"
+    for m in _HEADER_SINGLE.finditer(body):
+        add(m.start(1), m.group(1))
+
+    # Pattern 2: compound "Why X and Y (and Z) are correct"
+    for m in _HEADER_COMPOUND.finditer(body):
+        g1_start = m.start(1)
+        for lm in re.finditer(r"[A-Z]", m.group(1)):
+            add(g1_start + lm.start(), lm.group(0))
+
+    # Pattern 3: bold "Correct answer[s]: X. text and Y. text"
+    for m in _CORRECT_ANSWER_BLOCK.finditer(body):
+        block_start = m.start()
+        for lm in re.finditer(r"\b([A-Z])\.\s", m.group(0)):
+            add(block_start + lm.start(1), lm.group(1))
+
+    # Pattern 4: bold leading option discussion `**X. `
+    for m in _BOLD_LETTER_DOT.finditer(body):
+        add(m.start(1), m.group(1))
+
+    # Pattern 5: bold letter alone `**X**`
+    for m in _BOLD_LETTER_ALONE.finditer(body):
+        add(m.start(1), m.group(1))
+
+    # Pattern 6: parenthetical `(X)`
+    for m in _PAREN_SINGLE.finditer(body):
+        add(m.start(1), m.group(1))
+
+    if not rewrites:
+        return body
+
+    # Apply rewrites in position order. Each rewrite is exactly one character.
+    out: list[str] = []
+    last = 0
+    for pos in sorted(rewrites):
+        original, new = rewrites[pos]
+        out.append(body[last:pos])
+        # Sanity: the character at pos should equal original
+        if body[pos] != original:
+            raise AssertionError(
+                f"Rewrite mismatch at offset {pos}: "
+                f"expected {original!r}, found {body[pos]!r}."
+            )
+        out.append(new)
+        last = pos + 1
+    out.append(body[last:])
+    return "".join(out)
+
+
+def invert_map(letter_map: dict[str, str]) -> dict[str, str]:
+    """Return the inverse mapping. Raises if the input isn't a bijection."""
+    out: dict[str, str] = {}
+    for k, v in letter_map.items():
+        if v in out:
+            raise ValueError(f"Letter map is not a bijection: {v!r} appears twice")
+        out[v] = k
+    return out

@@ -12,3 +12,6 @@ Thumbs.db
 # Source PDFs and raw extraction artifacts (kept locally, not published)
 *.pdf
 _work/
+
+# Dry-run shuffle previews
+tools/_preview/
