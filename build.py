@@ -8,12 +8,16 @@ Output: practicetest/app/questions.json
 
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 EXTRACTED = ROOT / "extracted"
 OUTPUT = ROOT / "app" / "questions.json"
 CATEGORIES = ROOT / "app" / "categories.json"
+
+sys.path.insert(0, str(ROOT / "tools"))
+from letter_remap import lint_question  # noqa: E402
 
 KNOWN_COMPANIES = ["Fabrikam", "Contoso", "Adatum", "Litware", "Northwind", "Tailwind"]
 
@@ -256,6 +260,7 @@ def load_categories():
 def main():
     categories = load_categories()
     questions = []
+    answer_bodies: dict[str, str] = {}
     for topic_num in (1, 2, 3):
         topic_dir = EXTRACTED / f"topic-{topic_num}"
         if not topic_dir.exists():
@@ -319,6 +324,7 @@ def main():
                 record["options"] = options
 
             questions.append(record)
+            answer_bodies[qid] = a_body
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT, "w", encoding="utf-8") as f:
@@ -369,6 +375,18 @@ def main():
         print("\nIncomplete records:")
         for line in incomplete:
             print(f"  - {line}")
+
+    lint_warnings = []
+    for q in questions:
+        if q["type"] in ("multiple-choice", "multi-select"):
+            body = answer_bodies.get(q["id"], "")
+            lint_warnings.extend(lint_question(q, body))
+    if lint_warnings:
+        print(f"\nletter_remap lint: {len(lint_warnings)} question(s) with unanchored option letters:")
+        for w in lint_warnings:
+            print(f"  - {w}")
+    else:
+        print("\nletter_remap lint: OK (every MC/MS option letter has a structured anchor).")
 
 
 if __name__ == "__main__":

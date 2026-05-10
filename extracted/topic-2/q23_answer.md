@@ -40,7 +40,7 @@ Copilot in Field Service is the documented capability that gives frontline worke
 
 **C. Dynamics 365 Customer Service** is the underlying customer service application; the question asks for the Copilot capability layered on it, which is Copilot Service workspace.
 
-**D. Copilot in Customer Service** focuses on case-handling assistance for customer service representatives. It overlaps with A but does not deliver field-worker support; the documented service-operations workspace experience is Copilot Service workspace.
+**D. Copilot in Customer Service** focuses on case-handling assistance for customer service representatives. It overlaps with **A** but does not deliver field-worker support; the documented service-operations workspace experience is Copilot Service workspace.
 
 **F. The Dynamics 365 Field Service mobile app** is the mobile client. The Copilot capability inside it that delivers contextual AI is Copilot in Field Service. The question asks for the Copilot component, not the host app.
 
