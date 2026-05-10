@@ -73,6 +73,7 @@
   let picks = null;
   let stats = loadStats();
   let sessionAnswered = new Set();
+  let shuffleMaps = {};
   let pickerSelected = new Set();
   let voicePrefs = loadVoicePrefs();
   let activeListen = null;
@@ -127,8 +128,8 @@
     const lines = [stem];
     if (q.options && q.options.length) {
       lines.push("");
-      q.options.forEach(opt => {
-        lines.push(opt.letter + ". " + opt.text);
+      displayedOptions(q).forEach(opt => {
+        lines.push(opt.displayLetter + ". " + opt.text);
       });
     } else if (q.slots && q.slots.length) {
       lines.push("Hotspot question with " + q.slots.length + " selections to make.");
@@ -231,11 +232,15 @@
       }
       return;
     }
+    const perm = getShuffleFor(q);
+    const toOriginal = perm
+      ? (l) => perm.dispToOrig[l] || l
+      : (l) => l;
     if (q.type === "multiple-choice") {
-      picks.letter = parsed.letters[0];
+      picks.letter = toOriginal(parsed.letters[0]);
       finalizeReveal(q);
     } else if (q.type === "multi-select") {
-      picks.set = new Set(parsed.letters);
+      picks.set = new Set(parsed.letters.map(toOriginal));
       finalizeReveal(q);
     }
   }
@@ -395,6 +400,7 @@
       order,
       cursor,
       answered: Array.from(sessionAnswered),
+      shuffleMaps,
     }));
   }
   function clearSession() { sessionStorage.removeItem(SESSION_KEY); }
@@ -409,6 +415,7 @@
     revealed = false;
     picks = null;
     sessionAnswered = new Set();
+    shuffleMaps = {};
     saveSession();
     closePicker();
     render();
@@ -440,6 +447,24 @@
   }
   function categoryLabel(code) {
     return (domains[code] && domains[code].label) || (DOMAIN_FALLBACK[code] && DOMAIN_FALLBACK[code].label) || null;
+  }
+
+  function getShuffleFor(q) {
+    if (!q || !window.Shuffle || !Shuffle.isShuffleable(q)) return null;
+    const saved = shuffleMaps[q.id];
+    if (saved && saved.origToDisp && saved.dispToOrig) return saved;
+    const letters = (q.options || []).map(o => o.letter);
+    const perm = Shuffle.makePermutation(letters);
+    shuffleMaps[q.id] = perm;
+    saveSession();
+    return perm;
+  }
+
+  function displayedOptions(q) {
+    const perm = getShuffleFor(q);
+    return window.Shuffle ? Shuffle.displayOptions(q, perm) : (q.options || []).map(o => ({
+      displayLetter: o.letter, originalLetter: o.letter, text: o.text,
+    }));
   }
 
   function initPicksFor(q) {
@@ -708,9 +733,9 @@
 
   function renderMultipleChoice(q) {
     const correct = new Set(q.correct_letters || []);
-    const optsHtml = (q.options || []).map(opt => {
-      const isPicked = picks.letter === opt.letter;
-      const isCorrect = correct.has(opt.letter);
+    const optsHtml = displayedOptions(q).map(opt => {
+      const isPicked = picks.letter === opt.originalLetter;
+      const isCorrect = correct.has(opt.originalLetter);
       let cls = "option";
       if (revealed) {
         if (isCorrect) cls += " correct";
@@ -719,8 +744,8 @@
         cls += " picked";
       }
       const dis = revealed ? "disabled" : "";
-      return `<button class="${cls}" data-letter="${opt.letter}" ${dis}>
-        <span class="option-letter">${opt.letter}</span>
+      return `<button class="${cls}" data-letter="${opt.originalLetter}" ${dis}>
+        <span class="option-letter">${opt.displayLetter}</span>
         <span class="option-text">${escapeHtml(opt.text)}</span>
       </button>`;
     }).join("");
@@ -729,9 +754,9 @@
 
   function renderMultiSelect(q) {
     const correct = new Set(q.correct_letters || []);
-    const optsHtml = (q.options || []).map(opt => {
-      const isPicked = picks.set.has(opt.letter);
-      const isCorrect = correct.has(opt.letter);
+    const optsHtml = displayedOptions(q).map(opt => {
+      const isPicked = picks.set.has(opt.originalLetter);
+      const isCorrect = correct.has(opt.originalLetter);
       let cls = "option option-checkable";
       if (revealed) {
         if (isCorrect && isPicked) cls += " correct";
@@ -741,9 +766,9 @@
         cls += " picked";
       }
       const dis = revealed ? "disabled" : "";
-      return `<button class="${cls}" data-letter="${opt.letter}" ${dis}>
+      return `<button class="${cls}" data-letter="${opt.originalLetter}" ${dis}>
         <span class="option-checkbox">${isPicked ? "&#10003;" : ""}</span>
-        <span class="option-letter">${opt.letter}</span>
+        <span class="option-letter">${opt.displayLetter}</span>
         <span class="option-text">${escapeHtml(opt.text)}</span>
       </button>`;
     }).join("");
@@ -871,7 +896,11 @@
 
   function renderExplanation(q) {
     if (!revealed) return "";
-    const md = (q.explanation_md || "").replace(/^#\s+.*$/m, "").trim();
+    let md = (q.explanation_md || "").replace(/^#\s+.*$/m, "").trim();
+    const perm = getShuffleFor(q);
+    if (perm && window.Shuffle) {
+      try { md = Shuffle.remapMarkdown(md, perm.origToDisp); } catch (_) { /* keep original on remap error */ }
+    }
     return `<div class="explanation">${renderMarkdown(md)}</div>`;
   }
 
@@ -1032,8 +1061,8 @@
     lines.push(stem);
     if (q.options && q.options.length) {
       lines.push("");
-      q.options.forEach(opt => {
-        lines.push(`${opt.letter}. ${opt.text}`);
+      displayedOptions(q).forEach(opt => {
+        lines.push(`${opt.displayLetter}. ${opt.text}`);
       });
     }
     return lines.join("\n");
@@ -1212,10 +1241,12 @@
         order = saved.order;
         cursor = saved.cursor || 0;
         sessionAnswered = new Set(Array.isArray(saved.answered) ? saved.answered : []);
+        shuffleMaps = (saved.shuffleMaps && typeof saved.shuffleMaps === "object") ? saved.shuffleMaps : {};
       } else {
         order = shuffle(questions.map((_, i) => i));
         cursor = 0;
         sessionAnswered = new Set();
+        shuffleMaps = {};
         saveSession();
       }
       revealed = false;
