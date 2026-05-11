@@ -1398,7 +1398,7 @@
         {
           "label": "Use a centralized workspace",
           "options": [
-            "An Microsoft Foundry hub",
+            "A Microsoft Foundry hub",
             "Azure OpenAI Foundry",
             "Microsoft Copilot Studio",
             "Microsoft Dataverse"
